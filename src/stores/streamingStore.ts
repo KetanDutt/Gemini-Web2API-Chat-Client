@@ -5,6 +5,10 @@ import { useSyncExternalStore } from 'react'
  * Streaming text lives outside the main conversation store so that each token
  * only re-renders the single message component that subscribes to it — not the
  * whole message list.
+ *
+ * Buffers are updated synchronously (so `get()` always sees the latest text),
+ * but subscriber notifications are coalesced to one per animation frame to
+ * avoid layout thrash on fast streams.
  */
 interface StreamingState {
   buffers: Map<string, string>
@@ -21,41 +25,35 @@ function notify(id: string) {
   listeners.get(id)?.forEach((l) => l())
 }
 
+let rafId: number | null = null
+const pending = new Set<string>()
+
+function scheduleNotify(id: string) {
+  pending.add(id)
+  if (rafId != null) return
+  rafId = requestAnimationFrame(() => {
+    rafId = null
+    pending.forEach((p) => notify(p))
+    pending.clear()
+  })
+}
+
 export const useStreaming = create<StreamingState>()(() => ({
   buffers,
   start: (id) => {
     buffers.set(id, '')
-    notify(id)
+    scheduleNotify(id)
   },
   push: (id, full) => {
     buffers.set(id, full)
-    notify(id)
+    scheduleNotify(id)
   },
   get: (id) => buffers.get(id),
   clear: (id) => {
     buffers.delete(id)
-    notify(id)
+    scheduleNotify(id)
   },
 }))
-
-// Throttle notifications to animation frames to avoid layout thrash on fast streams.
-let rafId: number | null = null
-const pending = new Set<string>()
-const origPush = useStreaming.getState().push
-useStreaming.setState({
-  push: (id, full) => {
-    buffers.set(id, full)
-    pending.add(id)
-    if (rafId == null) {
-      rafId = requestAnimationFrame(() => {
-        rafId = null
-        pending.forEach((p) => notify(p))
-        pending.clear()
-      })
-    }
-  },
-})
-void origPush
 
 /** Subscribe a single component to one message's streaming buffer. */
 export function useStreamingText(id: string): string | undefined {

@@ -13,10 +13,6 @@ export function uid(prefix = ''): string {
   return prefix ? `${prefix}_${id}` : id
 }
 
-export function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms))
-}
-
 export function formatTime(ts: number): string {
   return new Date(ts).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
 }

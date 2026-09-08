@@ -10,3 +10,6 @@ interface Window {
     openExternal: (url: string) => Promise<boolean>
   }
 }
+
+/** Injected by Vite from package.json at build time. */
+declare const __APP_VERSION__: string

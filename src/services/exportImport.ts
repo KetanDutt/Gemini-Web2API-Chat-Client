@@ -1,7 +1,12 @@
-import type { Conversation, ExportFormat, GlassGemExport, GlassGemExportConversation, Message, SavedPrompt } from '@/types'
-import { formatDateTime, safeFilename, uid } from '@/lib/utils'
+import type { Attachment, Conversation, ExportFormat, GlassGemExport, GlassGemExportConversation, Message, SavedPrompt } from '@/types'
+import { formatBytes, formatDateTime, safeFilename, uid } from '@/lib/utils'
 
 const ROLE_LABEL: Record<string, string> = { user: 'User', assistant: 'Gemini', system: 'System' }
+
+function attachmentLine(m: Message): string | undefined {
+  if (!m.attachments?.length) return undefined
+  return m.attachments.map((a) => (a.size > 0 ? `[image: ${a.name} · ${formatBytes(a.size)}]` : `[image: ${a.name}]`)).join('  ')
+}
 
 function activeContent(m: Message): string {
   if (m.versions?.length && m.activeVersion != null) {
@@ -31,7 +36,8 @@ export function conversationToMarkdown(conversation: Conversation, messages: Mes
   }
   for (const m of messages) {
     if (m.role === 'system') continue
-    lines.push(`## ${ROLE_LABEL[m.role] ?? m.role}`, '', activeContent(m), '')
+    const body = [activeContent(m), attachmentLine(m)].filter(Boolean).join('\n\n')
+    lines.push(`## ${ROLE_LABEL[m.role] ?? m.role}`, '', body, '')
   }
   const u = usageSummary(messages)
   lines.push('---', '', `**Model:** ${conversation.model}  `, `**Date:** ${formatDateTime(conversation.createdAt)}  `)
@@ -44,7 +50,8 @@ export function conversationToText(conversation: Conversation, messages: Message
   const lines: string[] = [conversation.title, '='.repeat(Math.min(conversation.title.length, 60)), '']
   for (const m of messages) {
     if (m.role === 'system') continue
-    lines.push(`${ROLE_LABEL[m.role] ?? m.role} (${formatDateTime(m.createdAt)}):`, activeContent(m), '')
+    const att = attachmentLine(m)
+    lines.push(`${ROLE_LABEL[m.role] ?? m.role} (${formatDateTime(m.createdAt)}):`, activeContent(m), ...(att ? [att] : []), '')
   }
   const u = usageSummary(messages)
   lines.push('---', `Model: ${conversation.model}`, `Date: ${formatDateTime(conversation.createdAt)}`)
@@ -118,6 +125,24 @@ function sanitizeMessage(raw: unknown, conversationId: string, order: number): M
     }
   }
   if (typeof raw.latencyMs === 'number') msg.latencyMs = raw.latencyMs
+  if (Array.isArray(raw.attachments)) {
+    const attachments = raw.attachments.filter(isObj).slice(0, 8).flatMap((a) => {
+      const name = str(a.name).trim()
+      if (!name) return []
+      // A data URL that is not an image data URL would be unsafe to render - drop the whole attachment.
+      if (typeof a.dataUrl === 'string' && !a.dataUrl.startsWith('data:image/')) return []
+      const dataUrl = typeof a.dataUrl === 'string' ? a.dataUrl : undefined
+      const attachment: Attachment = {
+        id: uid('att'),
+        name: name.slice(0, 200),
+        mimeType: typeof a.mimeType === 'string' && a.mimeType.startsWith('image/') ? a.mimeType.slice(0, 100) : 'image/png',
+        size: num(a.size, 0),
+        ...(dataUrl ? { dataUrl } : {}),
+      }
+      return [attachment]
+    })
+    if (attachments.length) msg.attachments = attachments
+  }
   if (Array.isArray(raw.versions)) {
     const versions = raw.versions
       .filter(isObj)

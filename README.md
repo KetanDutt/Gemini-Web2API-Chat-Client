@@ -210,7 +210,7 @@ Nothing is uploaded anywhere. Clearing site data in the browser erases it — ex
 
 **Everything** (Settings → Data): *Export all data* writes `glassgem-backup-YYYY-MM-DD.json` containing all conversations and prompts.
 
-**Import** (Settings → Data → Import) accepts single-conversation or full-backup GlassGem JSON. Files are validated field by field; malformed files produce a clear error toast and never crash the app. Imported conversations get new IDs, so importing twice creates duplicates rather than overwriting.
+**Import** (Settings → Data → Import) accepts single-conversation or full-backup GlassGem JSON. Files are validated field by field; malformed files produce a clear error toast and never crash the app. Imported conversations get new IDs, so importing twice creates duplicates rather than overwriting. Image attachments round-trip through the JSON format (Markdown / text exports show `[image: name]` markers instead).
 
 ## 11. Security
 
@@ -222,7 +222,10 @@ Nothing is uploaded anywhere. Clearing site data in the browser erases it — ex
 
 ## 12. Development
 
+Deeper documentation lives in [`docs/`](./docs): [architecture](./docs/ARCHITECTURE.md) · [development guide](./docs/DEVELOPMENT.md) · [security & privacy](./docs/SECURITY.md).
+
 ```
+docs/             architecture, development guide, security notes
 src/
   components/
     background/   ambient animated background
@@ -261,6 +264,7 @@ Useful commands:
 | --- | --- |
 | `npm run dev` | Dev server with HMR on <http://localhost:5173> |
 | `npm run typecheck` | Strict TypeScript check |
+| `npm test` | Unit tests (Node's built-in runner — zero extra dependencies) |
 | `npm run mock` | Mock Web2API on port 8081 |
 | `npm run build` | Production web build into `dist/` |
 | `npm run preview` | Serve `dist/` on <http://localhost:4173> (proxy included) |
@@ -298,6 +302,7 @@ A repeatable GitHub Actions workflow is included at `.github/workflows/windows-d
 - **Regenerate** keeps previous answers: *Response 1 / 3* with ◀ ▶ controls
 - **Stop** generation (AbortController → proxy → upstream)
 - Timestamps, per-message model, **token usage** (click for prompt/completion/total), optional response time
+- **Image attachments** — attach up to 4 images per message with thumbnails and drag-free picking; large images are downscaled locally before they are stored or sent (opt-in, see Known limitations)
 - Per-conversation **system instructions** and optional default system prompt
 - Optional `temperature` / `top_p` / `max_tokens` — off by default, auto-disabled if the server rejects them
 - **Prompt library** with categories, favorites, create/edit/delete, one-click insert
@@ -330,7 +335,7 @@ On macOS use `⌘` instead of `Ctrl`.
 
 These come from the Web2API side, and GlassGem is deliberately conservative about them:
 
-- **Attachments / images** — disabled by default. GlassGem will not fake file support. If your Web2API build accepts OpenAI-style `image_url` parts, enable *Image input* in Settings → Chat.
+- **Image attachments** — fully implemented in the UI (picking, downscaling, previews, sending OpenAI-style `image_url` parts) but **disabled by default**: enable *Image input* in Settings → Chat once you have verified your Web2API build accepts multimodal messages. File (non-image) attachments are still out of scope — GlassGem will not fake file support.
 - **System messages & sampling parameters** — sent only when enabled; if the server returns 400, GlassGem marks them unsupported and stops sending them.
 - **Streaming** — attempted first; if refused, GlassGem falls back and remembers.
 - **Token usage / latency** — shown only when the server reports `usage`.
@@ -338,5 +343,9 @@ These come from the Web2API side, and GlassGem is deliberately conservative abou
 - **Model list** — depends on `GET /v1/models`; otherwise type model IDs manually.
 
 ---
+
+## License
+
+GlassGem is released under the [MIT License](./LICENSE).
 
 Built as a local companion for Gemini Web2API. GlassGem is not affiliated with Google.

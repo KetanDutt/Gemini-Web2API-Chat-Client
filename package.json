@@ -10,7 +10,7 @@
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -b",
-    "lint": "eslint .",
+    "test": "node --import ./test/register.mjs --test \"test/*.test.ts\"",
     "mock": "node scripts/mock-web2api.mjs",
     "desktop": "electron .",
     "desktop:dev": "node scripts/desktop-dev.mjs",
@@ -69,11 +69,16 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ],
       "icon": "resources/icon.ico"
@@ -89,5 +94,8 @@
       "uninstallerIcon": "resources/icon.ico",
       "deleteAppDataOnUninstall": false
     }
+  },
+  "engines": {
+    "node": ">=20.19"
   }
 }

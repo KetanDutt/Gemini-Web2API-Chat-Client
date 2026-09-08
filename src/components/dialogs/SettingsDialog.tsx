@@ -18,7 +18,7 @@ import { CAPABILITY_LABELS, type Capabilities } from '@/services/capabilities'
 import { useIsMobile } from '@/hooks/useMediaQuery'
 import { PromptLibraryPanel } from './PromptLibraryDialog'
 
-const APP_VERSION = '1.0.0'
+const APP_VERSION = __APP_VERSION__
 
 const TABS: { id: SettingsTab; label: string; icon: typeof Sliders }[] = [
   { id: 'general', label: 'General', icon: Sliders },
@@ -615,7 +615,7 @@ function AboutTab() {
       <Section title="Open source licenses">
         <div className="py-3 text-[13px] text-fg-muted">
           <p>Built with React, Vite, TypeScript, Tailwind CSS, Radix UI, Zustand, Dexie, react-markdown, remark-gfm, highlight.js, Motion, Sonner, and Lucide icons — all under MIT or similarly permissive licenses.</p>
-          <p className="mt-2">Inter typeface by Rasmus Andersson (SIL Open Font License).</p>
+          <p className="mt-2">Typography uses your system's native font stack — no web fonts are downloaded.</p>
           <a href="https://github.com/KetanDutt/Gemini-Web2API-Chat-Client" target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-accent hover:underline">
             Project repository <ExternalLink size={12} />
           </a>

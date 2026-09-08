@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useRef, useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Copy, Download, FileText, MoreHorizontal, Pencil, RefreshCw, Settings2, Trash2, Bug } from 'lucide-react'
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Copy, Download, FileText, MoreHorizontal, Paperclip, Pencil, RefreshCw, Settings2, Trash2, Bug } from 'lucide-react'
 import type { Message } from '@/types'
 import { cn, copyToClipboard, downloadFile, formatLatency, formatTime, modelLabel, safeFilename } from '@/lib/utils'
 import { Markdown } from './Markdown'
@@ -140,7 +140,22 @@ function UserMessage({ message, showTimestamps, generating }: Props) {
           className="relative max-w-[85%] rounded-(--radius-xl) rounded-br-(--radius-xs) px-4 py-2.5 text-[15px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_24px_-12px_var(--accent-ring)] sm:max-w-[72%]"
           style={{ background: 'var(--user-bubble)', color: 'var(--user-bubble-fg)', fontSize: 'var(--msg-font-size)' }}
         >
-          <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</div>
+          {message.attachments?.length ? (
+            <div className={cn('flex flex-wrap gap-1.5', message.content.trim() && 'mb-2')}>
+              {message.attachments.map((a) =>
+                a.dataUrl ? (
+                  <a key={a.id} href={a.dataUrl} target="_blank" rel="noreferrer noopener" title={`${a.name} · open full size`} className="block">
+                    <img src={a.dataUrl} alt={a.name} className="max-h-56 max-w-full rounded-(--radius-sm) object-contain" />
+                  </a>
+                ) : (
+                  <span key={a.id} className="flex items-center gap-1.5 rounded-(--radius-sm) bg-(--hover) px-2 py-1 text-[12px]" title={a.name}>
+                    <Paperclip size={12} /> {a.name}
+                  </span>
+                ),
+              )}
+            </div>
+          ) : null}
+          {message.content.trim() && <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</div>}
         </div>
       )}
       {!editing && (
