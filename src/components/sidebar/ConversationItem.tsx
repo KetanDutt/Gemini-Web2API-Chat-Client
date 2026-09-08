@@ -1,0 +1,135 @@
+import { memo, useEffect, useRef, useState } from 'react'
+import { Download, MoreHorizontal, Pencil, Pin, PinOff, Star, Trash2, FileJson, FileText, FileType } from 'lucide-react'
+import { cn, formatRelative } from '@/lib/utils'
+import type { Conversation } from '@/types'
+import { Menu, MenuContent, MenuItem, MenuSeparator, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from '@/components/ui/Menu'
+import { Highlight } from '@/hooks/useConversationSearch'
+
+interface Props {
+  conversation: Conversation
+  active: boolean
+  renaming: boolean
+  query?: string
+  snippet?: string
+  onSelect: (id: string) => void
+  onRename: (id: string, title: string) => void
+  onStartRename: (id: string | null) => void
+  onFavorite: (id: string) => void
+  onPin: (id: string) => void
+  onDelete: (id: string) => void
+  onExport: (id: string, format: 'json' | 'markdown' | 'txt') => void
+}
+
+export const ConversationItem = memo(function ConversationItem({ conversation: c, active, renaming, query, snippet, onSelect, onRename, onStartRename, onFavorite, onPin, onDelete, onExport }: Props) {
+  const [draft, setDraft] = useState(c.title)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (renaming) {
+      setDraft(c.title)
+      requestAnimationFrame(() => {
+        inputRef.current?.focus()
+        inputRef.current?.select()
+      })
+    }
+  }, [renaming, c.title])
+
+  const commit = () => {
+    if (draft.trim() && draft.trim() !== c.title) onRename(c.id, draft)
+    onStartRename(null)
+  }
+
+  return (
+    <div
+      className={cn(
+        'group relative flex items-start gap-2 rounded-2xl px-2.5 transition-colors duration-150',
+        active ? 'bg-surface-3 shadow-[inset_0_0_0_1px_var(--line)]' : 'hover:bg-surface-2',
+      )}
+      style={{ paddingTop: 'var(--sidebar-item-py)', paddingBottom: 'var(--sidebar-item-py)' }}
+    >
+      {renaming ? (
+        <input
+          ref={inputRef}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') commit()
+            if (e.key === 'Escape') onStartRename(null)
+            e.stopPropagation()
+          }}
+          className="field h-8 rounded-lg px-2 py-0 text-[13.5px]"
+          aria-label="Rename conversation"
+        />
+      ) : (
+        <button
+          className="min-w-0 flex-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
+          onClick={() => onSelect(c.id)}
+          onDoubleClick={() => onStartRename(c.id)}
+          aria-current={active ? 'page' : undefined}
+        >
+          <div className="flex items-center gap-1.5">
+            {c.pinned && <Pin size={11} className="shrink-0 text-accent" aria-label="Pinned" />}
+            {c.favorite && <Star size={11} className="shrink-0 fill-warning text-warning" aria-label="Favorite" />}
+            <span className="truncate text-[13.5px] font-medium leading-5">{query ? <Highlight text={c.title} query={query} /> : c.title}</span>
+          </div>
+          {(snippet || c.preview) && (
+            <p className="mt-0.5 truncate text-[12px] leading-4 text-fg-subtle">
+              {snippet && query ? <Highlight text={snippet} query={query} /> : c.preview}
+            </p>
+          )}
+          <p className="mt-0.5 text-[11px] leading-4 text-fg-subtle/80">{formatRelative(c.updatedAt)}</p>
+        </button>
+      )}
+
+      {!renaming && (
+        <Menu open={menuOpen} onOpenChange={setMenuOpen}>
+          <MenuTrigger asChild>
+            <button
+              className={cn('icon-btn icon-btn-sm -mr-1 mt-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100', (active || menuOpen) && 'opacity-100')}
+              aria-label={`Options for ${c.title}`}
+            >
+              <MoreHorizontal size={16} />
+            </button>
+          </MenuTrigger>
+          <MenuContent align="start" side="right">
+            <MenuItem icon={<Pencil size={14} />} onSelect={() => onStartRename(c.id)}>
+              Rename
+            </MenuItem>
+            <MenuItem icon={<Star size={14} className={c.favorite ? 'fill-warning text-warning' : ''} />} onSelect={() => onFavorite(c.id)}>
+              {c.favorite ? 'Remove favorite' : 'Add to favorites'}
+            </MenuItem>
+            <MenuItem icon={c.pinned ? <PinOff size={14} /> : <Pin size={14} />} onSelect={() => onPin(c.id)}>
+              {c.pinned ? 'Unpin' : 'Pin to top'}
+            </MenuItem>
+            <MenuSub>
+              <MenuSubTrigger>
+                <span className="flex w-4 items-center justify-center opacity-80">
+                  <Download size={14} />
+                </span>
+                <span className="flex-1">Export</span>
+                <span className="text-fg-subtle">›</span>
+              </MenuSubTrigger>
+              <MenuSubContent>
+                <MenuItem icon={<FileText size={14} />} onSelect={() => onExport(c.id, 'markdown')}>
+                  Markdown (.md)
+                </MenuItem>
+                <MenuItem icon={<FileJson size={14} />} onSelect={() => onExport(c.id, 'json')}>
+                  JSON (.json)
+                </MenuItem>
+                <MenuItem icon={<FileType size={14} />} onSelect={() => onExport(c.id, 'txt')}>
+                  Plain text (.txt)
+                </MenuItem>
+              </MenuSubContent>
+            </MenuSub>
+            <MenuSeparator />
+            <MenuItem icon={<Trash2 size={14} />} danger onSelect={() => onDelete(c.id)}>
+              Delete
+            </MenuItem>
+          </MenuContent>
+        </Menu>
+      )}
+    </div>
+  )
+})
