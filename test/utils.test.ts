@@ -43,6 +43,11 @@ test('previewFromContent: replaces code fences', () => {
   assert.ok(previewFromContent('look:\n```\ncode here\n```\ndone').includes('[code]'))
 })
 
+test('previewFromContent: strips elicitation markup', () => {
+  const preview = previewFromContent('Answer text <ElicitationsGroup message="Next?"><Elicitation label="x" query="y"/></ElicitationsGroup>')
+  assert.equal(preview, 'Answer text')
+})
+
 test('safeFilename: removes illegal characters', () => {
   assert.equal(safeFilename('a<b>c:d"e/f\\g|h?i*j'), 'abcdefghij')
   assert.equal(safeFilename('   '), 'conversation')

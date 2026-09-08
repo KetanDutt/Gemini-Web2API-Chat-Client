@@ -1,5 +1,6 @@
 import type { Attachment, Conversation, ExportFormat, GlassGemExport, GlassGemExportConversation, Message, SavedPrompt } from '@/types'
 import { formatBytes, formatDateTime, safeFilename, uid } from '@/lib/utils'
+import { stripElicitations } from '@/lib/elicitations'
 
 const ROLE_LABEL: Record<string, string> = { user: 'User', assistant: 'Gemini', system: 'System' }
 
@@ -36,7 +37,7 @@ export function conversationToMarkdown(conversation: Conversation, messages: Mes
   }
   for (const m of messages) {
     if (m.role === 'system') continue
-    const body = [activeContent(m), attachmentLine(m)].filter(Boolean).join('\n\n')
+    const body = [stripElicitations(activeContent(m)), attachmentLine(m)].filter(Boolean).join('\n\n')
     lines.push(`## ${ROLE_LABEL[m.role] ?? m.role}`, '', body, '')
   }
   const u = usageSummary(messages)
@@ -51,7 +52,7 @@ export function conversationToText(conversation: Conversation, messages: Message
   for (const m of messages) {
     if (m.role === 'system') continue
     const att = attachmentLine(m)
-    lines.push(`${ROLE_LABEL[m.role] ?? m.role} (${formatDateTime(m.createdAt)}):`, activeContent(m), ...(att ? [att] : []), '')
+    lines.push(`${ROLE_LABEL[m.role] ?? m.role} (${formatDateTime(m.createdAt)}):`, stripElicitations(activeContent(m)), ...(att ? [att] : []), '')
   }
   const u = usageSummary(messages)
   lines.push('---', `Model: ${conversation.model}`, `Date: ${formatDateTime(conversation.createdAt)}`)

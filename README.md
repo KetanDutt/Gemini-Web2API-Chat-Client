@@ -310,6 +310,7 @@ A repeatable GitHub Actions workflow is included at `.github/workflows/windows-d
 - **Code blocks** with language label, syntax highlighting and Copy / *Copied ✓*
 - Message actions: copy, copy as Markdown/plain text, regenerate, export, report error, delete; **edit & resend** for user messages
 - **Regenerate** keeps previous answers: *Response 1 / 3* with ◀ ▶ controls
+- **Follow-up suggestions** — `<ElicitationsGroup>` / `<Elicitation>` markup appended by some servers is parsed, stripped from the text, and rendered as clickable chips that send the suggested prompt
 - **Stop** generation (AbortController → proxy → upstream)
 - Timestamps, per-message model, **token usage** (click for prompt/completion/total), optional response time
 - **Image attachments** — attach up to 4 images per message with thumbnails and drag-free picking; large images are downscaled locally before they are stored or sent (opt-in, see Known limitations)

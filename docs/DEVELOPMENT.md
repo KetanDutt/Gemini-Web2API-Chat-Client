@@ -62,6 +62,7 @@ non-streaming, multimodal message parts). Special inputs for testing:
 | `docker` or `network` | Rich Markdown sample (tables, code, blockquote) |
 | `slow` | Long stream, ~60 ms per token |
 | `short` | One-line answer |
+| `elicit` | Answer followed by an `<ElicitationsGroup>` block (follow-up chips) |
 | `error-500` | HTTP 500 |
 | `error-429` | HTTP 429 |
 | an image attachment | Acknowledges the image |

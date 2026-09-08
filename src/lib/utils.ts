@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { stripElicitations } from './elicitations'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -110,7 +111,7 @@ export function titleFromMessage(text: string): string {
 }
 
 export function previewFromContent(content: string, max = 80): string {
-  const text = content
+  const text = stripElicitations(content)
     .replace(/```[\s\S]*?```/g, '[code]')
     .replace(/[#*_>`~]/g, '')
     .replace(/\s+/g, ' ')
