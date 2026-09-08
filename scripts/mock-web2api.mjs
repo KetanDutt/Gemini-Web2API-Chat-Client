@@ -70,10 +70,34 @@ function tokens(text) {
   return text.match(/\S+\s*|\s+/g) ?? []
 }
 
+function splitContent(content) {
+  if (typeof content === 'string') return { text: content, images: 0 }
+  if (!Array.isArray(content)) return { text: '', images: 0 }
+  const text = content
+    .filter((p) => p?.type === 'text')
+    .map((p) => String(p.text ?? ''))
+    .join(' ')
+  const images = content.filter((p) => p?.type === 'image_url').length
+  return { text, images }
+}
+
 function replyFor(messages) {
   const last = [...messages].reverse().find((m) => m.role === 'user')
-  const text = typeof last?.content === 'string' ? last.content : ''
+  const { text, images } = splitContent(last?.content)
+  if (images > 0) {
+    const quoted = text.trim() ? `\n\nYou wrote:\n\n> ${text.trim().replace(/\n/g, '\n> ')}` : ''
+    return {
+      text: `I can see **${images} ${images === 1 ? 'image' : 'images'}** in your message.${quoted}\n\n_(This mock server only pretends to look at them — a real Web2API server forwards them to Gemini when its build supports multimodal input.)_`,
+    }
+  }
   const lower = text.toLowerCase()
+  if (lower.includes('elicit')) {
+    return {
+      text: `Here is a summary of the plan we discussed, with the main steps and trade-offs.
+
+<ElicitationsGroup message="Where should we go from here?"> <Elicitation label="Get a ComfyUI node setup for line-art/coloring pages" query="Show me the optimal ComfyUI workflow and node structure for generating high-resolution line art and coloring pages."/> <Elicitation label="Build the Python script to compile PNGs into KDP PDFs" query="Write a Python script that takes a folder of PNG images, fixes their DPI/margins, and compiles them into a print-ready PDF for Amazon KDP."/> <Elicitation label="Learn how to connect Ollama to n8n for listing generation" query="Explain how to connect Ollama to n8n to automatically generate Etsy SEO titles, descriptions, and tags from image concepts."/> </ElicitationsGroup>`,
+    }
+  }
   if (lower.includes('error-500')) return { error: 500 }
   if (lower.includes('error-429')) return { error: 429 }
   if (lower.includes('slow')) return { text: SAMPLE, slow: true }

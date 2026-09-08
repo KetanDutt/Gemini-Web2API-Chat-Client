@@ -3,6 +3,7 @@ dist
 release
 dev-dist
 *.local
+.env
 .DS_Store
 npm-debug.log*
 .vite

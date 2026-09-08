@@ -6,6 +6,7 @@
  * unless the capability layer has verified support for more.
  */
 import type { ChatParams, ModelInfo, Usage } from '@/types'
+import { modelLabel } from '@/lib/utils'
 import { ApiError, errorFromStatus, normalizeError } from './errors'
 
 export interface ApiConfig {
@@ -222,7 +223,7 @@ export class GeminiWebApi {
         .filter((m): m is Record<string, unknown> => !!m && typeof m.id === 'string')
         .map<ModelInfo>((m) => ({
           id: m.id as string,
-          label: prettifyModel(m.id as string),
+          label: modelLabel(m.id as string),
           ownedBy: typeof m.owned_by === 'string' ? m.owned_by : undefined,
           created: typeof m.created === 'number' ? m.created : undefined,
         }))
@@ -304,7 +305,7 @@ export class GeminiWebApi {
         model: typeof b.model === 'string' ? b.model : opts.model,
         usage,
         finishReason: typeof choice.finish_reason === 'string' ? choice.finish_reason : undefined,
-        latencyMs: performance.now() - (performance.now() - durationMs),
+        latencyMs: durationMs,
         status: res.status,
         streamed: false,
       }
@@ -363,6 +364,7 @@ export class GeminiWebApi {
       const reader = res.body.getReader()
       const decoder = new TextDecoder()
       let buffer = ''
+      // Some servers delimit SSE events with CRLF; normalise once per chunk.
       let full = ''
       let usage: Usage | undefined
       let model: string | undefined
@@ -406,7 +408,7 @@ export class GeminiWebApi {
       while (true) {
         const { value, done } = await reader.read()
         if (done) break
-        buffer += decoder.decode(value, { stream: true })
+        buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n')
         let idx: number
         while ((idx = buffer.indexOf('\n\n')) !== -1) {
           const rawEvent = buffer.slice(0, idx)
@@ -447,14 +449,6 @@ function extractError(e: unknown): string {
   if (typeof e === 'string') return e
   if (e && typeof e === 'object' && typeof (e as { message?: unknown }).message === 'string') return (e as { message: string }).message
   return 'Unknown streaming error'
-}
-
-export function prettifyModel(id: string): string {
-  return id
-    .replace(/^models\//, '')
-    .split(/[-_]/)
-    .map((p) => (/^\d/.test(p) ? p : p.length <= 3 ? p.toUpperCase() : p.charAt(0).toUpperCase() + p.slice(1)))
-    .join(' ')
 }
 
 export const DEFAULT_API_CONFIG: ApiConfig = {

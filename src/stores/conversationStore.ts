@@ -3,7 +3,7 @@ import { db } from '@/services/db'
 import { geminiWebApi, type ChatMessageInput } from '@/services/geminiWebApi'
 import { ApiError, isAbortError, normalizeError } from '@/services/errors'
 import { shouldSendSamplingParams, shouldSendSystemMessage, shouldTryStreaming } from '@/services/capabilities'
-import type { Conversation, GlassGemExportConversation, Message, MessageVersion } from '@/types'
+import type { Attachment, Conversation, GlassGemExportConversation, Message, MessageVersion } from '@/types'
 import { previewFromContent, titleFromMessage, uid } from '@/lib/utils'
 import { useSettings, selectApiConfig } from './settingsStore'
 import { useConnection } from './connectionStore'
@@ -37,7 +37,7 @@ interface ConversationStore {
   importConversations: (items: GlassGemExportConversation[]) => Promise<number>
   getConversationMessages: (id: string) => Promise<Message[]>
 
-  sendMessage: (content: string, opts?: { conversationId?: string }) => Promise<void>
+  sendMessage: (content: string, opts?: { conversationId?: string; attachments?: Attachment[] }) => Promise<void>
   regenerate: (assistantMessageId: string) => Promise<void>
   editAndResend: (messageId: string, newContent: string) => Promise<void>
   deleteMessage: (messageId: string) => Promise<void>
@@ -200,7 +200,8 @@ export const useConversations = create<ConversationStore>()((set, get) => ({
 
   sendMessage: async (content, opts = {}) => {
     const text = content.trim()
-    if (!text) return
+    const hasAttachments = !!opts.attachments?.length
+    if (!text && !hasAttachments) return
     let conversationId = opts.conversationId ?? get().activeId
     if (!conversationId) {
       const conv = await get().createConversation()
@@ -218,6 +219,7 @@ export const useConversations = create<ConversationStore>()((set, get) => ({
       createdAt: Date.now(),
       status: 'complete',
       order,
+      ...(opts.attachments?.length ? { attachments: opts.attachments } : {}),
     }
     await db.messages.add(userMsg)
     if (get().activeId === conversationId) set((s) => ({ messages: [...s.messages, userMsg] }))
@@ -225,7 +227,7 @@ export const useConversations = create<ConversationStore>()((set, get) => ({
     // Auto-title from first user message.
     const conv = get().conversations.find((c) => c.id === conversationId)
     const isFirst = existing.filter((m) => m.role === 'user').length === 0
-    const patch: Partial<Conversation> = { preview: previewFromContent(text), messageCount: existing.length + 1 }
+    const patch: Partial<Conversation> = { preview: text ? previewFromContent(text) : '[image]', messageCount: existing.length + 1 }
     if (conv && isFirst && !conv.titleEdited && useSettings.getState().autoTitle) patch.title = titleFromMessage(text)
     await updateConversation(conversationId, patch, set)
 
@@ -316,12 +318,20 @@ async function updateConversation(id: string, patch: Partial<Conversation>, set:
 
 function buildApiMessages(history: Message[], systemPrompt?: string): ChatMessageInput[] {
   const caps = useConnection.getState().capabilities
+  const imagesSupported = caps.imageInput === 'supported'
   const out: ChatMessageInput[] = []
   if (systemPrompt && shouldSendSystemMessage(caps)) out.push({ role: 'system', content: systemPrompt })
   for (const m of history) {
     if (m.role === 'system') continue
     if (m.role === 'assistant' && (m.status === 'error' || !m.content.trim())) continue
-    out.push({ role: m.role, content: m.content })
+    const images = imagesSupported && m.role === 'user' ? (m.attachments ?? []).filter((a) => !!a.dataUrl) : []
+    if (images.length) {
+      const content: Array<{ type: 'text'; text: string } | { type: 'image_url'; image_url: { url: string } }> = [{ type: 'text', text: m.content }]
+      for (const a of images) content.push({ type: 'image_url', image_url: { url: a.dataUrl! } })
+      out.push({ role: 'user', content })
+    } else {
+      out.push({ role: m.role, content: m.content })
+    }
   }
   return out
 }

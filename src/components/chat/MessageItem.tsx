@@ -1,8 +1,9 @@
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Copy, Download, FileText, MoreHorizontal, Pencil, RefreshCw, Settings2, Trash2, Bug } from 'lucide-react'
+import { AlertTriangle, Check, ChevronLeft, ChevronRight, Copy, Download, FileText, MoreHorizontal, Paperclip, Pencil, RefreshCw, Settings2, Sparkles, Trash2, Bug } from 'lucide-react'
 import type { Message } from '@/types'
 import { cn, copyToClipboard, downloadFile, formatLatency, formatTime, modelLabel, safeFilename } from '@/lib/utils'
+import { parseElicitations } from '@/lib/elicitations'
 import { Markdown } from './Markdown'
 import { GemMark } from '@/components/layout/Logo'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '@/components/ui/Menu'
@@ -140,7 +141,22 @@ function UserMessage({ message, showTimestamps, generating }: Props) {
           className="relative max-w-[85%] rounded-(--radius-xl) rounded-br-(--radius-xs) px-4 py-2.5 text-[15px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_24px_-12px_var(--accent-ring)] sm:max-w-[72%]"
           style={{ background: 'var(--user-bubble)', color: 'var(--user-bubble-fg)', fontSize: 'var(--msg-font-size)' }}
         >
-          <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</div>
+          {message.attachments?.length ? (
+            <div className={cn('flex flex-wrap gap-1.5', message.content.trim() && 'mb-2')}>
+              {message.attachments.map((a) =>
+                a.dataUrl ? (
+                  <a key={a.id} href={a.dataUrl} target="_blank" rel="noreferrer noopener" title={`${a.name} · open full size`} className="block">
+                    <img src={a.dataUrl} alt={a.name} className="max-h-56 max-w-full rounded-(--radius-sm) object-contain" />
+                  </a>
+                ) : (
+                  <span key={a.id} className="flex items-center gap-1.5 rounded-(--radius-sm) bg-(--hover) px-2 py-1 text-[12px]" title={a.name}>
+                    <Paperclip size={12} /> {a.name}
+                  </span>
+                ),
+              )}
+            </div>
+          ) : null}
+          {message.content.trim() && <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</div>}
         </div>
       )}
       {!editing && (
@@ -176,17 +192,22 @@ function AssistantMessage({ message, showTimestamps, showUsage, showLatency, gen
   const regenerate = useConversations((s) => s.regenerate)
   const setActiveVersion = useConversations((s) => s.setActiveVersion)
   const deleteMessage = useConversations((s) => s.deleteMessage)
+  const sendMessage = useConversations((s) => s.sendMessage)
   const openDialog = useUI((s) => s.openDialog)
   const { copied, copy } = useCopy()
 
   const isActive = message.status === 'pending' || message.status === 'streaming'
   const content = isActive && streamed != null ? streamed : message.content
+  // Follow-up suggestions (<ElicitationsGroup/>) arrive as markup: strip them
+  // from the rendered text and show them as clickable chips instead.
+  const parsed = useMemo(() => parseElicitations(content, { streaming: isActive }), [content, isActive])
+  const display = parsed.clean
   const err = message.status === 'error' ? parseMessageError(message) : null
   const versions = message.versions?.length ? message.versions : null
   const vIndex = message.activeVersion ?? 0
 
   const exportMessage = () => {
-    downloadFile(`${safeFilename(`gemini-${formatTime(message.createdAt)}`)}.md`, content, 'text/markdown')
+    downloadFile(`${safeFilename(`gemini-${formatTime(message.createdAt)}`)}.md`, display, 'text/markdown')
     toast.success('Export complete')
   }
 
@@ -199,7 +220,7 @@ function AssistantMessage({ message, showTimestamps, showUsage, showLatency, gen
       err ? `Error: ${err.title} — ${err.message}${err.status ? ` (HTTP ${err.status})` : ''}` : 'Error: none',
       '',
       'Response content:',
-      content || '(empty)',
+      display || '(empty)',
     ].join('\n')
     void copy(report, 'Report copied')
   }
@@ -216,7 +237,7 @@ function AssistantMessage({ message, showTimestamps, showUsage, showLatency, gen
           </div>
         ) : (
           <>
-            {content && <Markdown content={content} streaming={message.status === 'streaming'} />}
+            {display && <Markdown content={display} streaming={message.status === 'streaming'} />}
             {message.status === 'stopped' && <p className="mt-2 text-[12.5px] italic text-fg-subtle">Generation stopped.</p>}
           </>
         )}
@@ -242,11 +263,36 @@ function AssistantMessage({ message, showTimestamps, showUsage, showLatency, gen
           </div>
         )}
 
+        {!isActive && parsed.groups.length > 0 && (
+          <div className="mt-3 space-y-2.5" aria-label="Follow-up suggestions">
+            {parsed.groups.map((group, gi) => (
+              <div key={gi} className="enter-rise" style={parsed.groups.length > 1 ? { animationDelay: `${gi * 60}ms` } : undefined}>
+                {group.message && <p className="mb-1.5 text-[12.5px] text-fg-subtle">{group.message}</p>}
+                <div className="flex flex-wrap gap-1.5">
+                  {group.elicitations.map((el, ei) => (
+                    <button
+                      key={ei}
+                      className="glass-sm flex max-w-full items-center gap-1.5 rounded-(--radius-pill) px-3 py-1.5 text-left text-[12.5px] text-fg-muted transition-[background-color,color,transform] duration-(--duration-fast) ease-(--ease-standard) hover:bg-surface-2 hover:text-fg active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+                      onClick={() => void sendMessage(el.query, { conversationId: message.conversationId })}
+                      disabled={generating}
+                      title={el.query}
+                      aria-label={`Send follow-up: ${el.label}`}
+                    >
+                      <Sparkles size={12} className="shrink-0 text-accent" />
+                      <span className="truncate">{el.label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         {!isActive && (
           <div className="mt-1.5 flex min-h-7 flex-wrap items-center gap-0.5 sm:-ml-1">
             <div className="flex items-center gap-0.5 opacity-0 transition-opacity duration-(--duration-fast) group-hover:opacity-100 focus-within:opacity-100 sm:opacity-0 max-sm:opacity-100">
               <Tooltip content="Copy">
-                <button className="icon-btn icon-btn-sm" onClick={() => void copy(content)} aria-label="Copy response" disabled={!content}>
+                <button className="icon-btn icon-btn-sm" onClick={() => void copy(display)} aria-label="Copy response" disabled={!display}>
                   <CopyIcon copied={copied} />
                 </button>
               </Tooltip>
@@ -262,10 +308,10 @@ function AssistantMessage({ message, showTimestamps, showUsage, showLatency, gen
                   </button>
                 </MenuTrigger>
                 <MenuContent align="start">
-                  <MenuItem icon={<Copy size={14} />} onSelect={() => void copy(toPlainText(content))}>
+                  <MenuItem icon={<Copy size={14} />} onSelect={() => void copy(toPlainText(display))}>
                     Copy as plain text
                   </MenuItem>
-                  <MenuItem icon={<FileText size={14} />} onSelect={() => void copy(content, 'Markdown copied')}>
+                  <MenuItem icon={<FileText size={14} />} onSelect={() => void copy(display, 'Markdown copied')}>
                     Copy as Markdown
                   </MenuItem>
                   <MenuItem icon={<RefreshCw size={14} />} onSelect={() => void regenerate(message.id)} disabled={generating}>

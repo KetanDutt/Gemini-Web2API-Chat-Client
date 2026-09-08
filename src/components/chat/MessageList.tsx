@@ -4,7 +4,6 @@ import { useConversations } from '@/stores/conversationStore'
 import { useSettings } from '@/stores/settingsStore'
 import { MessageItem } from './MessageItem'
 import { WelcomeScreen } from './WelcomeScreen'
-import { useStreaming } from '@/stores/streamingStore'
 import { cn } from '@/lib/utils'
 
 export function MessageList({ onScrolledChange }: { onScrolledChange?: (scrolled: boolean) => void }) {
@@ -65,21 +64,15 @@ export function MessageList({ onScrolledChange }: { onScrolledChange?: (scrolled
   useEffect(() => {
     if (!generating) return
     let raf = 0
-    const unsub = useStreaming.subscribe(() => {
-      /* noop – buffers are updated outside zustand; we poll below */
-    })
     const tick = () => {
       if (atBottomRef.current && scrollRef.current) {
         const el = scrollRef.current
-        el.scrollTop = el.scrollHeight
+        if (el.scrollTop + el.clientHeight < el.scrollHeight - 1) el.scrollTop = el.scrollHeight
       }
       raf = requestAnimationFrame(tick)
     }
     raf = requestAnimationFrame(tick)
-    return () => {
-      cancelAnimationFrame(raf)
-      unsub()
-    }
+    return () => cancelAnimationFrame(raf)
   }, [generating])
 
   const scrollToBottom = () => {

@@ -1,19 +1,23 @@
 @echo off
 rem ===================================================================
-rem  GlassGem - start the web (browser/PWA) development server (Windows)
-rem
-rem  This launcher needs Node.js + the npm packages only. It does NOT need
-rem  the Electron runtime and therefore no access to github.com.
-rem  For the native Windows app use run-desktop.bat instead.
+rem  GlassGem Desktop - start the native Windows app (Electron)
 rem
 rem  Double-click this file, or from a terminal:
-rem      run.bat            start GlassGem
-rem      run.bat clean      delete node_modules, reinstall, then start
-rem      run.bat mock       also start the mock Web2API server (for UI testing)
-rem      run.bat /?         show this help
+rem      run-desktop.bat           start the desktop app (Vite + Electron)
+rem      run-desktop.bat clean     reinstall dependencies first, then start
+rem      run-desktop.bat mock      also start the mock Web2API server
+rem      run-desktop.bat /?        show this help
+rem
+rem  For the browser/PWA version use run.bat instead - it does not need
+rem  Electron and therefore no access to github.com.
+rem
+rem  The desktop app needs the Electron runtime (electron.exe), which is
+rem  downloaded from https://github.com/electron/electron/releases the
+rem  first time. If your network blocks GitHub, set a mirror first:
+rem      set ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/
 rem ===================================================================
 setlocal EnableExtensions
-title GlassGem
+title GlassGem Desktop
 
 cd /d "%~dp0" 2>nul
 if errorlevel 1 (
@@ -37,13 +41,12 @@ goto :parse_args
 
 echo.
 echo   =============================================
-echo     GlassGem  -  Your personal Gemini workspace
+echo     GlassGem Desktop  -  native Windows app
 echo   =============================================
-echo     Browser/PWA version ^(native app: run-desktop.bat^)
 echo.
 
-rem ---------- environment + dependencies ------------------------------
-call "scripts\check-env.bat" %CLEAN%
+rem ---------- environment + dependencies (Electron required) ----------
+call "scripts\check-env.bat" %CLEAN% desktop
 set "RC=%errorlevel%"
 if "%RC%"=="2" (
   echo.
@@ -76,43 +79,33 @@ if errorlevel 1 (
   )
 )
 
-rem ---------- port check ---------------------------------------------
-set "PORT=5173"
-set "PORT_BUSY="
-netstat -ano 2>nul | findstr /r /c:":%PORT% .*LISTENING" >nul 2>nul
-if not errorlevel 1 set "PORT_BUSY=1"
-if defined PORT_BUSY (
-  echo [INFO]  Port %PORT% is already in use - Vite will choose the next free port.
-  echo         Open the address shown after "Local:" below.
-) else (
-  start "" /b cmd /c "timeout /t 4 /nobreak >nul && start http://localhost:%PORT%"
-)
-
 echo.
-echo   Starting the GlassGem dev server...  Press Ctrl+C in this window to stop it.
+echo   Starting the GlassGem desktop app...  Close its window to stop it.
 echo.
-call npm run dev
+call npm run desktop:dev
 set "RC=%errorlevel%"
 if not "%RC%"=="0" (
   echo.
-  echo [ERROR] The dev server stopped with exit code %RC%.
+  echo [ERROR] The desktop app stopped with exit code %RC%.
   echo         Read the message above. Typical fixes:
-  echo           - Dependency problems:   run.bat clean
+  echo           - Dependency problems:   run-desktop.bat clean
   echo           - Port conflicts:        close the other program using the port
-  echo           - Corrupted cache:       delete the node_modules\.vite folder
   goto :fail
 )
 echo.
-echo   GlassGem stopped.
+echo   GlassGem Desktop stopped.
 pause
 exit /b 0
 
 :help
 echo.
-echo   run.bat [clean] [mock]
+echo   run-desktop.bat [clean] [mock]
 echo.
 echo     clean   remove node_modules and reinstall before starting
 echo     mock    also start the mock Web2API server ^(sample answers only^)
+echo.
+echo   Starts GlassGem as a native Windows window (Electron) with hot reload.
+echo   The browser/PWA version is started by run.bat instead.
 echo.
 echo   Environment: set GLASSGEM_WEB2API_URL to override the Web2API address
 echo   that is checked at startup ^(default http://127.0.0.1:8081^).
@@ -122,7 +115,7 @@ exit /b 0
 
 :fail
 echo.
-echo   GlassGem could not start. See the messages above.
+echo   GlassGem Desktop could not start. See the messages above.
 echo.
 pause
 exit /b 1

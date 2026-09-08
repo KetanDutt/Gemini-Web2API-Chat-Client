@@ -1,5 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
+import { stripElicitations } from './elicitations'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -11,10 +12,6 @@ export function uid(prefix = ''): string {
       ? crypto.randomUUID()
       : `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`
   return prefix ? `${prefix}_${id}` : id
-}
-
-export function sleep(ms: number) {
-  return new Promise((r) => setTimeout(r, ms))
 }
 
 export function formatTime(ts: number): string {
@@ -114,7 +111,7 @@ export function titleFromMessage(text: string): string {
 }
 
 export function previewFromContent(content: string, max = 80): string {
-  const text = content
+  const text = stripElicitations(content)
     .replace(/```[\s\S]*?```/g, '[code]')
     .replace(/[#*_>`~]/g, '')
     .replace(/\s+/g, ' ')

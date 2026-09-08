@@ -75,13 +75,15 @@ Defaults GlassGem expects:
 
 ### Easiest (Windows)
 
-Double-click **`run.bat`**. It checks Node.js (offers to install it via winget if missing), installs or refreshes dependencies when needed, warns if Web2API isn't reachable, starts the dev server and opens <http://localhost:5173>.
+Double-click **`run.bat`**. It checks Node.js (offers to install it via winget if missing), installs or refreshes dependencies when needed, warns if Web2API isn't reachable, starts the dev server and opens <http://localhost:5173>. This is the **browser/PWA version** — it needs only the npm packages and works even on networks that block `github.com` (no Electron download required).
 
 | Command | Purpose |
 | --- | --- |
-| `run.bat` | Start GlassGem |
+| `run.bat` | Start GlassGem in the browser (web version) |
 | `run.bat clean` | Delete `node_modules`, reinstall, then start |
 | `run.bat mock` | Also start the mock Web2API server (sample answers only) |
+| `run-desktop.bat` | Start the native Windows app (Electron) with hot reload |
+| `run-desktop.bat clean` | Reinstall dependencies (including the Electron runtime), then start |
 | `build.bat` | Type-check + production web build into `dist/` |
 | `build.bat preview` | Build, then serve it on <http://localhost:4173> |
 | `build.bat clean` | Reinstall dependencies before building |
@@ -103,14 +105,20 @@ On first launch you'll see **Connect to Gemini Web2API**. Click **Test Connectio
 
 GlassGem can also run as a real Windows desktop app, packaged with Electron. The installed app has a native Windows window, application menu, isolated renderer, stable local storage, and an embedded loopback proxy. It does **not** require Node.js or a browser after installation. The Gemini Web2API server remains a separate local process.
 
-From a Windows PowerShell or Command Prompt in the project folder:
+The easiest way is the dedicated launcher:
+
+```bat
+run-desktop.bat
+```
+
+It checks dependencies (downloading the Electron runtime on first use) and starts Vite + Electron together with hot reload — the same as `npm run desktop:dev`, which also works on macOS/Linux:
 
 ```bat
 npm install
 npm run desktop:dev
 ```
 
-`desktop:dev` starts Vite and Electron together with hot reload. To create distributable Windows artifacts:
+To create distributable Windows artifacts:
 
 ```bat
 desktop.bat build
@@ -164,6 +172,7 @@ Each starts as *Unknown*, becomes *Supported* after a successful observed reques
 | **Invalid response** | The URL points at an HTML page instead of the API. | Make sure the URL ends with `/v1`. |
 | Response stops midway | You pressed **Stop**, or the connection dropped. | Click **Regenerate**. |
 | Everything looks stuck | Browser tab lost IndexedDB access (private mode etc.). | Use a normal window. |
+| `run-desktop.bat` says **Electron runtime is missing** | Only the native app needs `electron.exe`; it is downloaded separately from GitHub releases, and `npm install` alone reports *up to date* without retrying it. The web version (`run.bat`) works without it. | Run `run-desktop.bat` again — it re-runs the Electron download automatically. If GitHub is blocked: set a mirror with `npm config set electron_mirror https://registry.npmmirror.com/-/binary/electron/` (or `set ELECTRON_MIRROR=…` for one run), configure `npm config set https-proxy …` behind a proxy, or check that no antivirus quarantined `electron.exe`, then `run-desktop.bat clean`. Or just use the web version: `run.bat`. |
 
 Every error in the chat has **Retry** and **Open Settings** buttons. Turn on **Settings → General → Debug panel** to see recent requests, HTTP status codes, durations and token usage (never the API key).
 
@@ -209,7 +218,7 @@ Nothing is uploaded anywhere. Clearing site data in the browser erases it — ex
 
 **Everything** (Settings → Data): *Export all data* writes `glassgem-backup-YYYY-MM-DD.json` containing all conversations and prompts.
 
-**Import** (Settings → Data → Import) accepts single-conversation or full-backup GlassGem JSON. Files are validated field by field; malformed files produce a clear error toast and never crash the app. Imported conversations get new IDs, so importing twice creates duplicates rather than overwriting.
+**Import** (Settings → Data → Import) accepts single-conversation or full-backup GlassGem JSON. Files are validated field by field; malformed files produce a clear error toast and never crash the app. Imported conversations get new IDs, so importing twice creates duplicates rather than overwriting. Image attachments round-trip through the JSON format (Markdown / text exports show `[image: name]` markers instead).
 
 ## 11. Security
 
@@ -221,7 +230,10 @@ Nothing is uploaded anywhere. Clearing site data in the browser erases it — ex
 
 ## 12. Development
 
+Deeper documentation lives in [`docs/`](./docs): [architecture](./docs/ARCHITECTURE.md) · [development guide](./docs/DEVELOPMENT.md) · [security & privacy](./docs/SECURITY.md).
+
 ```
+docs/             architecture, development guide, security notes
 src/
   components/
     background/   ambient animated background
@@ -251,6 +263,8 @@ scripts/
   check-env.bat     shared Windows environment/dependency check used by the launchers
 resources/
   icon.ico        Windows installer and executable icon
+run.bat           starts the web (browser/PWA) version - no Electron needed
+run-desktop.bat   starts the native Windows app (Electron) with hot reload
 desktop.bat       Windows desktop dev/build/portable commands
 ```
 
@@ -260,6 +274,7 @@ Useful commands:
 | --- | --- |
 | `npm run dev` | Dev server with HMR on <http://localhost:5173> |
 | `npm run typecheck` | Strict TypeScript check |
+| `npm test` | Unit tests (Node's built-in runner — zero extra dependencies) |
 | `npm run mock` | Mock Web2API on port 8081 |
 | `npm run build` | Production web build into `dist/` |
 | `npm run preview` | Serve `dist/` on <http://localhost:4173> (proxy included) |
@@ -295,8 +310,10 @@ A repeatable GitHub Actions workflow is included at `.github/workflows/windows-d
 - **Code blocks** with language label, syntax highlighting and Copy / *Copied ✓*
 - Message actions: copy, copy as Markdown/plain text, regenerate, export, report error, delete; **edit & resend** for user messages
 - **Regenerate** keeps previous answers: *Response 1 / 3* with ◀ ▶ controls
+- **Follow-up suggestions** — `<ElicitationsGroup>` / `<Elicitation>` markup appended by some servers is parsed, stripped from the text, and rendered as clickable chips that send the suggested prompt
 - **Stop** generation (AbortController → proxy → upstream)
 - Timestamps, per-message model, **token usage** (click for prompt/completion/total), optional response time
+- **Image attachments** — attach up to 4 images per message with thumbnails and drag-free picking; large images are downscaled locally before they are stored or sent (opt-in, see Known limitations)
 - Per-conversation **system instructions** and optional default system prompt
 - Optional `temperature` / `top_p` / `max_tokens` — off by default, auto-disabled if the server rejects them
 - **Prompt library** with categories, favorites, create/edit/delete, one-click insert
@@ -329,7 +346,7 @@ On macOS use `⌘` instead of `Ctrl`.
 
 These come from the Web2API side, and GlassGem is deliberately conservative about them:
 
-- **Attachments / images** — disabled by default. GlassGem will not fake file support. If your Web2API build accepts OpenAI-style `image_url` parts, enable *Image input* in Settings → Chat.
+- **Image attachments** — fully implemented in the UI (picking, downscaling, previews, sending OpenAI-style `image_url` parts) but **disabled by default**: enable *Image input* in Settings → Chat once you have verified your Web2API build accepts multimodal messages. File (non-image) attachments are still out of scope — GlassGem will not fake file support.
 - **System messages & sampling parameters** — sent only when enabled; if the server returns 400, GlassGem marks them unsupported and stops sending them.
 - **Streaming** — attempted first; if refused, GlassGem falls back and remembers.
 - **Token usage / latency** — shown only when the server reports `usage`.
@@ -337,5 +354,9 @@ These come from the Web2API side, and GlassGem is deliberately conservative abou
 - **Model list** — depends on `GET /v1/models`; otherwise type model IDs manually.
 
 ---
+
+## License
+
+GlassGem is released under the [MIT License](./LICENSE).
 
 Built as a local companion for Gemini Web2API. GlassGem is not affiliated with Google.

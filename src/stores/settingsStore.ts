@@ -20,7 +20,6 @@ export interface SettingsState {
   showUsage: boolean
   showLatency: boolean
   autoTitle: boolean
-  aiTitles: boolean
   streaming: boolean
   defaultSystemPrompt: string
   sendSystemPrompt: boolean
@@ -52,7 +51,6 @@ const DEFAULTS: Omit<SettingsState, 'set' | 'update' | 'clearCredentials' | 'res
   showUsage: true,
   showLatency: false,
   autoTitle: true,
-  aiTitles: false,
   streaming: true,
   defaultSystemPrompt: '',
   sendSystemPrompt: false,

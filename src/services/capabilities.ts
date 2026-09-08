@@ -44,10 +44,6 @@ export function isSupported(state: CapabilityState) {
   return state === 'supported'
 }
 
-export function isKnownUnsupported(state: CapabilityState) {
-  return state === 'unsupported'
-}
-
 /**
  * Decide whether to try streaming for the next request.
  * We attempt it when unknown (and fall back on failure) or when supported.
