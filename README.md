@@ -75,7 +75,18 @@ Defaults GlassGem expects:
 
 ### Easiest (Windows)
 
-Double-click **`run.bat`**. It installs dependencies on first launch, starts the dev server and opens your browser at <http://localhost:5173>.
+Double-click **`run.bat`**. It checks Node.js (offers to install it via winget if missing), installs or refreshes dependencies when needed, warns if Web2API isn't reachable, starts the dev server and opens <http://localhost:5173>.
+
+| Command | Purpose |
+| --- | --- |
+| `run.bat` | Start GlassGem |
+| `run.bat clean` | Delete `node_modules`, reinstall, then start |
+| `run.bat mock` | Also start the mock Web2API server (sample answers only) |
+| `build.bat` | Type-check + production build into `dist/` |
+| `build.bat preview` | Build, then serve it on <http://localhost:4173> |
+| `build.bat clean` | Reinstall dependencies before building |
+
+Every script stops with a plain-language explanation and suggested fix when something goes wrong (missing/old Node.js, failed `npm install`, type errors, port conflicts…). Add `/?` to see the options.
 
 ### Manual
 
@@ -202,6 +213,7 @@ src/
 scripts/
   web2api-proxy.ts  local CORS proxy (Vite plugin)
   mock-web2api.mjs  mock server for UI development
+  check-env.bat     shared Windows environment/dependency check used by run.bat and build.bat
 ```
 
 Useful commands:
@@ -225,7 +237,7 @@ npm run build
 npm run preview
 ```
 
-or double-click **`run-production.bat`**. The preview server includes the same local proxy, so the API configuration is unchanged. The build is a PWA — in Edge/Chrome use *Install GlassGem* (an install banner is shown when available). The app shell works offline; requests still need the local Web2API server.
+or double-click **`build.bat`** (add `preview` to serve it right away). The preview server includes the same local proxy, so the API configuration is unchanged. The build is a PWA — in Edge/Chrome use *Install GlassGem* (an install banner is shown when available). The app shell works offline; requests still need the local Web2API server.
 
 ## 14. Features
 
