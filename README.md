@@ -75,13 +75,15 @@ Defaults GlassGem expects:
 
 ### Easiest (Windows)
 
-Double-click **`run.bat`**. It checks Node.js (offers to install it via winget if missing), installs or refreshes dependencies when needed, warns if Web2API isn't reachable, starts the dev server and opens <http://localhost:5173>.
+Double-click **`run.bat`**. It checks Node.js (offers to install it via winget if missing), installs or refreshes dependencies when needed, warns if Web2API isn't reachable, starts the dev server and opens <http://localhost:5173>. This is the **browser/PWA version** — it needs only the npm packages and works even on networks that block `github.com` (no Electron download required).
 
 | Command | Purpose |
 | --- | --- |
-| `run.bat` | Start GlassGem |
+| `run.bat` | Start GlassGem in the browser (web version) |
 | `run.bat clean` | Delete `node_modules`, reinstall, then start |
 | `run.bat mock` | Also start the mock Web2API server (sample answers only) |
+| `run-desktop.bat` | Start the native Windows app (Electron) with hot reload |
+| `run-desktop.bat clean` | Reinstall dependencies (including the Electron runtime), then start |
 | `build.bat` | Type-check + production web build into `dist/` |
 | `build.bat preview` | Build, then serve it on <http://localhost:4173> |
 | `build.bat clean` | Reinstall dependencies before building |
@@ -103,14 +105,20 @@ On first launch you'll see **Connect to Gemini Web2API**. Click **Test Connectio
 
 GlassGem can also run as a real Windows desktop app, packaged with Electron. The installed app has a native Windows window, application menu, isolated renderer, stable local storage, and an embedded loopback proxy. It does **not** require Node.js or a browser after installation. The Gemini Web2API server remains a separate local process.
 
-From a Windows PowerShell or Command Prompt in the project folder:
+The easiest way is the dedicated launcher:
+
+```bat
+run-desktop.bat
+```
+
+It checks dependencies (downloading the Electron runtime on first use) and starts Vite + Electron together with hot reload — the same as `npm run desktop:dev`, which also works on macOS/Linux:
 
 ```bat
 npm install
 npm run desktop:dev
 ```
 
-`desktop:dev` starts Vite and Electron together with hot reload. To create distributable Windows artifacts:
+To create distributable Windows artifacts:
 
 ```bat
 desktop.bat build
@@ -164,7 +172,7 @@ Each starts as *Unknown*, becomes *Supported* after a successful observed reques
 | **Invalid response** | The URL points at an HTML page instead of the API. | Make sure the URL ends with `/v1`. |
 | Response stops midway | You pressed **Stop**, or the connection dropped. | Click **Regenerate**. |
 | Everything looks stuck | Browser tab lost IndexedDB access (private mode etc.). | Use a normal window. |
-| `run.bat` says **Electron runtime is missing** | The npm packages installed fine, but the `electron.exe` binary — downloaded separately from GitHub releases — never arrived. `npm install` alone reports *up to date* and never retries it. | Just run `run.bat` again: the startup check now re-runs the Electron download automatically. If it still fails, GitHub is likely blocked: set a mirror with `npm config set electron_mirror https://registry.npmmirror.com/-/binary/electron/` (or `set ELECTRON_MIRROR=…` for one run), configure `npm config set https-proxy …` behind a proxy, or check that no antivirus quarantined `electron.exe`, then `run.bat clean`. |
+| `run-desktop.bat` says **Electron runtime is missing** | Only the native app needs `electron.exe`; it is downloaded separately from GitHub releases, and `npm install` alone reports *up to date* without retrying it. The web version (`run.bat`) works without it. | Run `run-desktop.bat` again — it re-runs the Electron download automatically. If GitHub is blocked: set a mirror with `npm config set electron_mirror https://registry.npmmirror.com/-/binary/electron/` (or `set ELECTRON_MIRROR=…` for one run), configure `npm config set https-proxy …` behind a proxy, or check that no antivirus quarantined `electron.exe`, then `run-desktop.bat clean`. Or just use the web version: `run.bat`. |
 
 Every error in the chat has **Retry** and **Open Settings** buttons. Turn on **Settings → General → Debug panel** to see recent requests, HTTP status codes, durations and token usage (never the API key).
 
@@ -255,6 +263,8 @@ scripts/
   check-env.bat     shared Windows environment/dependency check used by the launchers
 resources/
   icon.ico        Windows installer and executable icon
+run.bat           starts the web (browser/PWA) version - no Electron needed
+run-desktop.bat   starts the native Windows app (Electron) with hot reload
 desktop.bat       Windows desktop dev/build/portable commands
 ```
 

@@ -66,7 +66,7 @@ if not "%RC%"=="0" goto :fail
 goto :success
 
 :clean
-call "scripts\check-env.bat" clean
+call "scripts\check-env.bat" clean desktop
 if errorlevel 1 goto :fail
 call npm run desktop:build
 set "RC=%errorlevel%"
@@ -74,7 +74,7 @@ if not "%RC%"=="0" goto :fail
 goto :success
 
 :check_environment
-call "scripts\check-env.bat"
+call "scripts\check-env.bat" desktop
 exit /b %errorlevel%
 
 :success

@@ -27,9 +27,14 @@ configure, either directly or through the built-in local proxy.
 
 | Mode | Entry point | How API requests travel |
 | --- | --- | --- |
-| Dev server | `npm run dev` / `run.bat` | Browser → Vite dev server `/web2api/*` proxy → Web2API |
+| Dev server (web) | `npm run dev` / `run.bat` | Browser → Vite dev server `/web2api/*` proxy → Web2API |
 | Production web / PWA | `npm run preview` / `build.bat` | Browser → Vite preview server `/web2api/*` proxy → Web2API |
-| Native Windows app | `desktop.bat dev` / `desktop.bat build` | Renderer → embedded loopback server `/web2api/*` proxy → Web2API |
+| Native Windows app | `run-desktop.bat` / `desktop.bat` | Renderer → embedded loopback server `/web2api/*` proxy → Web2API |
+
+Only the native row needs the Electron runtime (`electron.exe`). The shared
+environment checker (`scripts/check-env.bat`) runs in `web` mode for the first
+two rows — skipping the Electron binary download entirely — and in `desktop`
+mode for the third, where it fetches/repairs the runtime from GitHub releases.
 
 The proxy exists to sidestep browser CORS restrictions without any cloud
 backend. It is implemented twice on purpose:

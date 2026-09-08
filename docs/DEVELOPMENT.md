@@ -19,9 +19,18 @@ npm run mock         :: optional: fake Web2API on 127.0.0.1:8081
 npm run dev          :: dev server on http://localhost:5173
 ```
 
-Windows users can double-click **`run.bat`** instead — it checks Node.js,
-installs/repairs dependencies (including the Electron binary), optionally
-starts the mock server (`run.bat mock`), and launches the dev server.
+Windows users can double-click a launcher instead:
+
+- **`run.bat`** — the **web (browser/PWA) version**. Checks Node.js,
+  installs/repairs the npm packages, optionally starts the mock server
+  (`run.bat mock`), and launches the dev server. It deliberately skips the
+  Electron binary download, so it works even where `github.com` is blocked.
+- **`run-desktop.bat`** — the **native Windows app**. Same care, plus it
+  requires (and repairs/downloads) the Electron runtime before starting
+  Vite + Electron together. `run-desktop.bat clean` / `mock` work too.
+
+`build.bat` (web production build) and `desktop.bat` (native build commands)
+share the same environment checker (`scripts/check-env.bat [clean] [desktop]`).
 
 ## Scripts
 
@@ -93,9 +102,11 @@ Copy `.env.example` to `.env` if you want a persistent
 
 ## Desktop development
 
-`npm run desktop:dev` starts Vite (strict port 5173) and, once it answers,
-launches Electron pointed at it. Ctrl+C / closing the window tears both down.
-`desktop.bat dev|build|portable|pack|clean` wraps the same commands on Windows.
+`npm run desktop:dev` (or **`run-desktop.bat`** on Windows) starts Vite
+(strict port 5173) and, once it answers, launches Electron pointed at it.
+Ctrl+C / closing the window tears both down. Note that the desktop dev server
+claims port 5173 with `--strictPort`, so stop any running `run.bat` dev server
+first. `desktop.bat dev|build|portable|pack|clean` wraps the same commands.
 
 ## Continuous integration
 
