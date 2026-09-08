@@ -6,6 +6,7 @@ rem  Double-click this file, or from a terminal:
 rem      build.bat            type-check + build into the dist folder
 rem      build.bat clean      reinstall dependencies first, then build
 rem      build.bat preview    build and start the local preview server
+rem      build.bat desktop    build the native Windows installer + portable app
 rem      build.bat /?         show this help
 rem ===================================================================
 setlocal EnableExtensions
@@ -20,17 +21,20 @@ if errorlevel 1 (
 
 set "CLEAN="
 set "PREVIEW="
+set "DESKTOP="
 :parse_args
 if "%~1"=="" goto :args_done
 if /i "%~1"=="clean"   set "CLEAN=clean"
 if /i "%~1"=="preview" set "PREVIEW=1"
 if /i "%~1"=="serve"   set "PREVIEW=1"
+if /i "%~1"=="desktop" set "DESKTOP=1"
 if /i "%~1"=="/?"      goto :help
 if /i "%~1"=="-h"      goto :help
 if /i "%~1"=="--help"  goto :help
 shift
 goto :parse_args
 :args_done
+if defined DESKTOP goto :desktop
 
 echo.
 echo   =============================================
@@ -113,12 +117,17 @@ echo.
 pause
 exit /b 0
 
+:desktop
+call "%~dp0desktop.bat" build
+exit /b %errorlevel%
+
 :help
 echo.
-echo   build.bat [clean] [preview]
+echo   build.bat [clean] [preview] [desktop]
 echo.
 echo     clean     remove node_modules and reinstall before building
 echo     preview   start the local preview server after a successful build
+echo     desktop   build the native Windows installer and portable app
 echo.
 pause
 exit /b 0

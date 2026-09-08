@@ -8,7 +8,13 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
+/** PWA controls are intentionally not mounted in the native Electron shell. */
 export function PwaPrompt() {
+  if (typeof window !== 'undefined' && window.glassgem?.isDesktop) return null
+  return <BrowserPwaPrompt />
+}
+
+function BrowserPwaPrompt() {
   const [installEvt, setInstallEvt] = useState<BeforeInstallPromptEvent | null>(null)
   const [dismissed, setDismissed] = useState(() => localStorage.getItem('glassgem.installDismissed') === '1')
   const { needRefresh, updateServiceWorker } = useRegisterSW({
