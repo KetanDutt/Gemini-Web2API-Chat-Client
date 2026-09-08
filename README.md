@@ -164,6 +164,7 @@ Each starts as *Unknown*, becomes *Supported* after a successful observed reques
 | **Invalid response** | The URL points at an HTML page instead of the API. | Make sure the URL ends with `/v1`. |
 | Response stops midway | You pressed **Stop**, or the connection dropped. | Click **Regenerate**. |
 | Everything looks stuck | Browser tab lost IndexedDB access (private mode etc.). | Use a normal window. |
+| `run.bat` says **Electron runtime is missing** | The npm packages installed fine, but the `electron.exe` binary — downloaded separately from GitHub releases — never arrived. `npm install` alone reports *up to date* and never retries it. | Just run `run.bat` again: the startup check now re-runs the Electron download automatically. If it still fails, GitHub is likely blocked: set a mirror with `npm config set electron_mirror https://registry.npmmirror.com/-/binary/electron/` (or `set ELECTRON_MIRROR=…` for one run), configure `npm config set https-proxy …` behind a proxy, or check that no antivirus quarantined `electron.exe`, then `run.bat clean`. |
 
 Every error in the chat has **Retry** and **Open Settings** buttons. Turn on **Settings → General → Debug panel** to see recent requests, HTTP status codes, durations and token usage (never the API key).
 

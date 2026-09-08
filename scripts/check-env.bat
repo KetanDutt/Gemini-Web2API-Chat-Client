@@ -114,15 +114,60 @@ if not exist "node_modules\.bin\electron-builder.cmd" (
   echo [ERROR] npm install finished but electron-builder is missing.
   goto :install_failed
 )
-if not exist "node_modules\electron\dist\electron.exe" (
-  echo [ERROR] npm install finished but the Electron runtime is missing.
-  echo         Run the install again with a working connection to GitHub releases.
-  goto :install_failed
+if not exist "node_modules\electron\dist\electron.exe" goto :repair_electron_binary
+goto :install_ok
+
+rem ---------- Electron runtime repair ---------------------------------
+rem The electron npm package contains JavaScript only. The real runtime
+rem (electron.exe) is downloaded from GitHub releases by the package's
+rem postinstall script. If that download ever failed or was interrupted,
+rem "npm install" keeps reporting "up to date" and never retries it, so
+rem the download is re-run explicitly here.
+:repair_electron_binary
+echo.
+echo [WARN]  The npm packages are installed, but the Electron runtime ^(electron.exe^)
+echo         is missing. It is downloaded from GitHub releases in a separate step,
+echo         and npm does not retry that download on its own. Retrying it now...
+echo.
+set "ELECTRON_SKIP_BINARY_DOWNLOAD="
+if not exist "node_modules\electron\install.js" (
+  echo [INFO]  The electron package itself is incomplete - forcing a full reinstall.
+  call npm install --force --no-fund --no-audit
+  goto :electron_repair_done
 )
+call node "node_modules\electron\install.js"
+if errorlevel 1 (
+  echo.
+  echo [WARN]  The direct download failed. Asking npm to rebuild the electron package...
+  call npm rebuild electron --foreground-scripts
+)
+:electron_repair_done
+if not exist "node_modules\electron\dist\electron.exe" goto :electron_binary_failed
+echo [OK]    Electron runtime restored.
+goto :install_ok
+
+:install_ok
 if defined LOCK_HASH (>"!MARKER!" echo !LOCK_HASH!)
 echo.
 echo [OK]    Dependencies installed.
 exit /b 0
+
+:electron_binary_failed
+echo.
+echo [ERROR] The Electron runtime still could not be downloaded.
+echo         It comes from https://github.com/electron/electron/releases,
+echo         which is a different host than the npm registry.
+echo         Things to try:
+echo           1. Read the error text above - it usually names the blocked host.
+echo           2. Behind a proxy:   npm config set https-proxy http://your-proxy:port
+echo           3. If GitHub is blocked for you, download from a mirror instead:
+echo                set ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/
+echo                run.bat    ^(try again in the same terminal window^)
+echo              Make it permanent:
+echo                npm config set electron_mirror https://registry.npmmirror.com/-/binary/electron/
+echo           4. Antivirus can quarantine electron.exe - allow the project folder,
+echo              then run:   run.bat clean
+exit /b 1
 
 rem ---------- error handlers ------------------------------------------
 :no_node
@@ -155,6 +200,7 @@ echo.
 echo [ERROR] Could not install the project dependencies.
 echo         Common causes:
 echo           - No internet connection, or a proxy/firewall blocking registry.npmjs.org
+echo           - A firewall blocking github.com ^(the Electron runtime downloads from there^)
 echo           - Antivirus software locking files inside node_modules
 echo           - A previous install that was interrupted
 echo         Things to try:
