@@ -55,12 +55,14 @@ export default function App() {
         toastOptions={{
           unstyled: true,
           classNames: {
-            toast: 'glass glass-4 flex w-[340px] items-start gap-3 rounded-2xl px-4 py-3 text-[13.5px]',
+            toast: 'glass-float flex w-[340px] items-start gap-3 rounded-(--radius-lg) px-4 py-3 text-[13.5px] text-fg',
             title: 'font-medium',
             description: 'text-fg-muted text-[12.5px] mt-0.5',
-            icon: 'mt-0.5 shrink-0',
+            icon: 'mt-0.5 shrink-0 text-fg-muted',
             success: '[&_[data-icon]]:text-success',
             error: '[&_[data-icon]]:text-danger',
+            info: '[&_[data-icon]]:text-accent',
+            warning: '[&_[data-icon]]:text-warning',
           },
         }}
       />

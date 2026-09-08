@@ -32,13 +32,13 @@ export function DebugDialog() {
           <Cell label="Last error" value={conn.lastError ? `${conn.lastError.title}: ${conn.lastError.message}` : '—'} />
         </div>
 
-        <h3 className="mb-2 mt-6 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">Recent requests</h3>
+        <h3 className="eyebrow mb-2 mt-6">Recent requests</h3>
         {conn.traces.length === 0 ? (
           <p className="text-[13px] text-fg-muted">No requests yet.</p>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-line">
+          <div className="group-panel overflow-hidden">
             <table className="w-full text-[12.5px]">
-              <thead className="bg-surface-2 text-left text-[11px] uppercase tracking-wider text-fg-subtle">
+              <thead className="bg-surface text-left text-[11px] uppercase tracking-wider text-fg-subtle">
                 <tr>
                   <th className="px-3 py-2 font-medium">Time</th>
                   <th className="px-3 py-2 font-medium">Request</th>
@@ -72,8 +72,8 @@ export function DebugDialog() {
 
 function Cell({ label, value, mono }: { label: string; value: string; mono?: boolean }) {
   return (
-    <div className="rounded-xl border border-line bg-surface px-3 py-2">
-      <p className="text-[11px] uppercase tracking-wider text-fg-subtle">{label}</p>
+    <div className="rounded-(--radius-md) bg-surface px-3 py-2 shadow-[inset_0_0_0_1px_var(--line)]">
+      <p className="eyebrow">{label}</p>
       <p className={cn('mt-0.5 truncate', mono && 'font-mono text-[12px]')} title={value}>
         {value}
       </p>

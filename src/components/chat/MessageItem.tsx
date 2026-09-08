@@ -42,6 +42,16 @@ function useCopy() {
   return { copied, copy }
 }
 
+/** Copy → check morph: the two glyphs cross-fade and scale in place. */
+function CopyIcon({ copied }: { copied: boolean }) {
+  return (
+    <span className="icon-swap" aria-hidden>
+      <Copy size={14} className={copied ? 'hidden-icon' : 'shown-icon'} />
+      <Check size={14} className={cn('text-success', copied ? 'shown-icon' : 'hidden-icon')} />
+    </span>
+  )
+}
+
 function toPlainText(md: string) {
   return md
     .replace(/```[\w-]*\n?([\s\S]*?)```/g, '$1')
@@ -93,7 +103,7 @@ function UserMessage({ message, showTimestamps, generating }: Props) {
   return (
     <article className="group flex flex-col items-end" aria-label="Your message">
       {editing ? (
-        <div className="glass glass-5 w-full max-w-[720px] rounded-[22px] p-2 sm:w-[85%]">
+        <div className="glass-md enter-pop w-full max-w-[720px] rounded-(--radius-xl) p-2 sm:w-[85%]">
           <textarea
             ref={ref}
             value={draft}
@@ -109,17 +119,17 @@ function UserMessage({ message, showTimestamps, generating }: Props) {
               }
               if (e.key === 'Escape') setEditing(null)
             }}
-            className="w-full resize-none bg-transparent px-3 py-2 text-[15px] leading-relaxed outline-none"
+            className="relative z-1 w-full resize-none bg-transparent px-3 py-2 text-[15px] leading-relaxed outline-none"
             rows={1}
             aria-label="Edit message"
           />
-          <div className="flex items-center justify-between px-1.5 pb-1">
+          <div className="relative z-1 flex items-center justify-between px-1.5 pb-1">
             <span className="text-[12px] text-fg-subtle">Messages after this one will be replaced.</span>
             <div className="flex gap-1.5">
-              <button className="btn-glass h-8 text-[13px]" onClick={() => setEditing(null)}>
+              <button className="btn btn-secondary btn-sm" onClick={() => setEditing(null)}>
                 Cancel
               </button>
-              <button className="btn-primary h-8 text-[13px]" onClick={submit} disabled={!draft.trim()}>
+              <button className="btn btn-primary btn-sm" onClick={submit} disabled={!draft.trim()}>
                 Send
               </button>
             </div>
@@ -127,14 +137,14 @@ function UserMessage({ message, showTimestamps, generating }: Props) {
         </div>
       ) : (
         <div
-          className="relative max-w-[85%] rounded-[22px] rounded-br-[8px] px-4 py-2.5 text-[15px] leading-relaxed shadow-[0_10px_30px_-12px_var(--accent-glow),inset_0_1px_0_rgba(255,255,255,0.25)] sm:max-w-[72%]"
+          className="relative max-w-[85%] rounded-(--radius-xl) rounded-br-(--radius-xs) px-4 py-2.5 text-[15px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_24px_-12px_var(--accent-ring)] sm:max-w-[72%]"
           style={{ background: 'var(--user-bubble)', color: 'var(--user-bubble-fg)', fontSize: 'var(--msg-font-size)' }}
         >
           <div className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">{message.content}</div>
         </div>
       )}
       {!editing && (
-        <div className="mt-1 flex h-7 items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 sm:pr-1">
+        <div className="mt-1 flex h-7 items-center gap-0.5 opacity-0 transition-opacity duration-(--duration-fast) group-hover:opacity-100 focus-within:opacity-100 sm:pr-1">
           {showTimestamps && <span className="mr-1 text-[11px] text-fg-subtle">{formatTime(message.createdAt)}{message.updatedAt && message.updatedAt !== message.createdAt ? ' · edited' : ''}</span>}
           <Tooltip content="Edit & resend">
             <button className="icon-btn icon-btn-sm" onClick={() => setEditing(message.id)} disabled={generating} aria-label="Edit message">
@@ -143,7 +153,7 @@ function UserMessage({ message, showTimestamps, generating }: Props) {
           </Tooltip>
           <Tooltip content="Copy">
             <button className="icon-btn icon-btn-sm" onClick={() => void copy(message.content)} aria-label="Copy message">
-              {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+              <CopyIcon copied={copied} />
             </button>
           </Tooltip>
           <Tooltip content="Delete">
@@ -196,7 +206,7 @@ function AssistantMessage({ message, showTimestamps, showUsage, showLatency, gen
 
   return (
     <article className="group flex gap-3 sm:gap-4" aria-label="Gemini response" aria-busy={isActive}>
-      <div className="mt-0.5 hidden h-8 w-8 shrink-0 items-center justify-center rounded-[10px] border border-line bg-surface-2 sm:flex">
+      <div className="mt-0.5 hidden h-8 w-8 shrink-0 items-center justify-center rounded-(--radius-sm) bg-surface-2 shadow-[inset_0_0_0_1px_var(--glass-edge)] sm:flex">
         <GemMark size={18} />
       </div>
       <div className="min-w-0 flex-1">
@@ -212,7 +222,7 @@ function AssistantMessage({ message, showTimestamps, showUsage, showLatency, gen
         )}
 
         {err && (
-          <div className="mt-3 rounded-[18px] border border-danger/25 bg-danger/[0.07] p-4" role="alert">
+          <div className="enter-pop mt-3 rounded-(--radius-lg) bg-(--danger-soft) p-4 shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--danger)_25%,transparent)]" role="alert">
             <div className="flex items-start gap-3">
               <AlertTriangle size={18} className="mt-0.5 shrink-0 text-danger" />
               <div className="min-w-0 flex-1 text-[13.5px]">
@@ -220,10 +230,10 @@ function AssistantMessage({ message, showTimestamps, showUsage, showLatency, gen
                 <p className="mt-0.5 text-fg-muted">{err.message}</p>
                 {err.hint && <p className="mt-1.5 whitespace-pre-wrap text-fg-muted">{err.hint}</p>}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <button className="btn-glass h-8 text-[13px]" onClick={() => void regenerate(message.id)} disabled={generating}>
+                  <button className="btn btn-secondary btn-sm" onClick={() => void regenerate(message.id)} disabled={generating}>
                     <RefreshCw size={13} /> Retry
                   </button>
-                  <button className="btn-glass h-8 text-[13px]" onClick={() => openDialog('settings', 'api')}>
+                  <button className="btn btn-ghost btn-sm" onClick={() => openDialog('settings', 'api')}>
                     <Settings2 size={13} /> Open Settings
                   </button>
                 </div>
@@ -234,10 +244,10 @@ function AssistantMessage({ message, showTimestamps, showUsage, showLatency, gen
 
         {!isActive && (
           <div className="mt-1.5 flex min-h-7 flex-wrap items-center gap-0.5 sm:-ml-1">
-            <div className="flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 sm:opacity-0 max-sm:opacity-100">
+            <div className="flex items-center gap-0.5 opacity-0 transition-opacity duration-(--duration-fast) group-hover:opacity-100 focus-within:opacity-100 sm:opacity-0 max-sm:opacity-100">
               <Tooltip content="Copy">
                 <button className="icon-btn icon-btn-sm" onClick={() => void copy(content)} aria-label="Copy response" disabled={!content}>
-                  {copied ? <Check size={14} className="text-success" /> : <Copy size={14} />}
+                  <CopyIcon copied={copied} />
                 </button>
               </Tooltip>
               <Tooltip content="Regenerate">
@@ -277,13 +287,13 @@ function AssistantMessage({ message, showTimestamps, showUsage, showLatency, gen
 
             {versions && versions.length > 1 && (
               <div className="ml-1 flex items-center gap-0.5 text-[12px] text-fg-muted">
-                <button className="icon-btn h-6 w-6" onClick={() => void setActiveVersion(message.id, vIndex - 1)} disabled={vIndex === 0 || generating} aria-label="Previous response">
+                <button className="icon-btn icon-btn-xs" onClick={() => void setActiveVersion(message.id, vIndex - 1)} disabled={vIndex === 0 || generating} aria-label="Previous response">
                   <ChevronLeft size={14} />
                 </button>
                 <span className="tabular-nums">
                   Response {vIndex + 1} / {versions.length}
                 </span>
-                <button className="icon-btn h-6 w-6" onClick={() => void setActiveVersion(message.id, vIndex + 1)} disabled={vIndex >= versions.length - 1 || generating} aria-label="Next response">
+                <button className="icon-btn icon-btn-xs" onClick={() => void setActiveVersion(message.id, vIndex + 1)} disabled={vIndex >= versions.length - 1 || generating} aria-label="Next response">
                   <ChevronRight size={14} />
                 </button>
               </div>
@@ -306,12 +316,12 @@ function UsagePill({ usage }: { usage: NonNullable<Message['usage']> }) {
   return (
     <Popover.Root>
       <Popover.Trigger asChild>
-        <button className="rounded-md px-1 tabular-nums transition-colors hover:bg-surface-2 hover:text-fg" aria-label={`${usage.total_tokens} tokens, click for details`}>
+        <button className="rounded-(--radius-xs) px-1 tabular-nums transition-colors duration-(--duration-fast) hover:bg-(--hover) hover:text-fg" aria-label={`${usage.total_tokens} tokens, click for details`}>
           {usage.total_tokens?.toLocaleString()} tokens
         </button>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content sideOffset={6} className="glass glass-4 z-[95] rounded-2xl px-3.5 py-2.5 text-[12.5px] animate-rise outline-none">
+        <Popover.Content sideOffset={6} collisionPadding={8} className="glass-float motion-pop z-(--z-popover) origin-(--radix-popover-content-transform-origin) rounded-(--radius-md) px-3.5 py-2.5 text-[12.5px] outline-none">
           <dl className="grid grid-cols-[auto_auto] gap-x-4 gap-y-1 tabular-nums">
             <dt className="text-fg-subtle">Prompt</dt>
             <dd className="text-right">{usage.prompt_tokens?.toLocaleString() ?? '—'}</dd>

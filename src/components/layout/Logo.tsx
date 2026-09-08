@@ -25,7 +25,7 @@ export function GemMark({ size = 24, className }: { size?: number; className?: s
 export function Logo({ compact }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="flex h-8 w-8 items-center justify-center rounded-[10px] border border-line bg-surface-2 shadow-[0_4px_16px_-6px_var(--accent-glow)]">
+      <span className="flex h-8 w-8 items-center justify-center rounded-(--radius-sm) bg-surface-2 shadow-[inset_0_0_0_1px_var(--glass-edge),var(--shadow-sm)]">
         <GemMark size={20} />
       </span>
       {!compact && <span className="text-[15px] font-semibold tracking-tight">GlassGem</span>}

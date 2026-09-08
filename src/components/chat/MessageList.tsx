@@ -7,7 +7,7 @@ import { WelcomeScreen } from './WelcomeScreen'
 import { useStreaming } from '@/stores/streamingStore'
 import { cn } from '@/lib/utils'
 
-export function MessageList() {
+export function MessageList({ onScrolledChange }: { onScrolledChange?: (scrolled: boolean) => void }) {
   const messages = useConversations((s) => s.messages)
   const loading = useConversations((s) => s.loadingMessages)
   const activeId = useConversations((s) => s.activeId)
@@ -25,14 +25,20 @@ export function MessageList() {
   useEffect(() => {
     const el = scrollRef.current
     if (!el) return
+    let scrolled = false
     const onScroll = () => {
       const near = el.scrollHeight - el.scrollTop - el.clientHeight < 80
       atBottomRef.current = near
       setAtBottom(near)
+      const next = el.scrollTop > 8
+      if (next !== scrolled) {
+        scrolled = next
+        onScrolledChange?.(next)
+      }
     }
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
-  }, [])
+  }, [onScrolledChange])
 
   // Jump to bottom when switching conversations / new messages arrive.
   useLayoutEffect(() => {
@@ -86,12 +92,17 @@ export function MessageList() {
     <div className="relative min-h-0 flex-1">
       <div ref={scrollRef} className="h-full overflow-y-auto overscroll-contain px-3 sm:px-6" role="log" aria-live="polite" aria-relevant="additions">
         {loading ? (
-          <div className="mx-auto max-w-3xl space-y-6 py-8">
-            <div className="ml-auto skeleton h-12 w-2/3" />
-            <div className="space-y-2">
-              <div className="skeleton h-4 w-full" />
-              <div className="skeleton h-4 w-11/12" />
-              <div className="skeleton h-4 w-3/4" />
+          <div className="enter-fade mx-auto max-w-3xl space-y-7 py-8" role="status" aria-label="Loading conversation">
+            <div className="skeleton ml-auto h-11 w-[58%] rounded-(--radius-xl)" />
+            <div className="space-y-2.5">
+              <div className="skeleton h-3.5 w-full" />
+              <div className="skeleton h-3.5 w-11/12" />
+              <div className="skeleton h-3.5 w-3/4" />
+            </div>
+            <div className="skeleton ml-auto h-11 w-[40%] rounded-(--radius-xl)" />
+            <div className="space-y-2.5">
+              <div className="skeleton h-3.5 w-10/12" />
+              <div className="skeleton h-3.5 w-1/2" />
             </div>
           </div>
         ) : visible.length === 0 ? (
@@ -99,7 +110,7 @@ export function MessageList() {
         ) : (
           <div className="mx-auto flex max-w-3xl flex-col py-6" style={{ gap: 'var(--msg-gap)' }}>
             {visible.map((m, i) => (
-              <div key={m.id} className={cn(i >= visible.length - 2 && 'animate-rise')}>
+              <div key={m.id} className={cn(i >= visible.length - 2 && 'enter-rise')}>
                 <MessageItem message={m} showTimestamps={showTimestamps} showUsage={showUsage} showLatency={showLatency} isLast={i === visible.length - 1} generating={generating} />
               </div>
             ))}
@@ -112,8 +123,8 @@ export function MessageList() {
         onClick={scrollToBottom}
         aria-label="Scroll to latest message"
         className={cn(
-          'glass glass-3 absolute bottom-3 left-1/2 flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full text-fg-muted transition-all duration-300 ease-out-expo hover:text-fg',
-          atBottom || visible.length === 0 ? 'pointer-events-none translate-y-3 opacity-0' : 'opacity-100',
+          'glass-float absolute bottom-3 left-1/2 z-(--z-panel) flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-(--radius-pill) text-fg-muted transition-[opacity,transform,color] duration-(--duration-slow) ease-(--ease-out) hover:text-fg active:scale-95',
+          atBottom || visible.length === 0 ? 'pointer-events-none translate-y-3 scale-90 opacity-0' : 'opacity-100',
         )}
       >
         <ArrowDown size={16} />

@@ -63,11 +63,11 @@ export function SearchDialog() {
   return (
     <DialogPrimitive.Root open={open} onOpenChange={(o) => !o && closeDialog()}>
       <DialogPrimitive.Portal>
-        <DialogPrimitive.Overlay className="fixed inset-0 z-[80] bg-black/30 backdrop-blur-[6px] animate-fade-in dark:bg-black/50" />
-        <DialogPrimitive.Content className="glass glass-4 fixed left-1/2 top-[12vh] z-[90] w-[calc(100vw-24px)] max-w-xl -translate-x-1/2 overflow-hidden rounded-[24px] outline-none animate-rise" onKeyDown={onKey}>
+        <DialogPrimitive.Overlay className="motion-fade fixed inset-0 z-(--z-dialog) bg-(--scrim) backdrop-blur-[3px]" />
+        <DialogPrimitive.Content className="glass-lg motion-palette fixed left-1/2 top-[12vh] z-(--z-dialog) w-[calc(100vw-20px)] max-w-xl overflow-hidden rounded-(--radius-xl) outline-none" onKeyDown={onKey}>
           <DialogPrimitive.Title className="sr-only">Search conversations</DialogPrimitive.Title>
           <DialogPrimitive.Description className="sr-only">Type to search titles and message content</DialogPrimitive.Description>
-          <div className="flex items-center gap-3 border-b border-line px-4">
+          <div className="relative z-1 flex items-center gap-3 border-b border-line px-4">
             <Search size={18} className="shrink-0 text-fg-subtle" />
             <input
               autoFocus
@@ -83,14 +83,16 @@ export function SearchDialog() {
             />
             <kbd className="kbd">Esc</kbd>
           </div>
-          <div ref={listRef} id="search-results" role="listbox" className="max-h-[50vh] overflow-y-auto p-2">
-            {!query && <p className="px-3 pb-1 pt-1.5 text-[11px] font-medium uppercase tracking-wider text-fg-subtle">Quick actions & recent</p>}
+          <div ref={listRef} id="search-results" role="listbox" className="relative z-1 max-h-[50vh] overflow-y-auto p-2">
+            {!query && <p className="eyebrow px-3 pb-1 pt-1.5">Quick actions & recent</p>}
             {query && items.length === 0 && !searching && (
-              <div className="flex flex-col items-center py-10 text-center">
-                <SearchX size={22} className="mb-2 text-fg-subtle" />
-                <p className="text-[14px] font-medium">No results for “{query}”</p>
+              <div className="enter-rise flex flex-col items-center py-10 text-center">
+                <span className="mb-3 flex h-10 w-10 items-center justify-center rounded-(--radius-md) bg-surface text-fg-muted shadow-[inset_0_0_0_1px_var(--line)]">
+                  <SearchX size={18} />
+                </span>
+                <p className="text-[14px] font-semibold tracking-tight">No results for “{query}”</p>
                 <p className="mt-1 text-[12.5px] text-fg-muted">Try a different word, or start a new chat about it.</p>
-                <button className="btn-glass mt-4 h-8 text-[13px]" onClick={() => { void createConversation(); useUI.getState().insertIntoComposer(query); closeDialog() }}>
+                <button className="btn btn-secondary btn-sm mt-4" onClick={() => { void createConversation(); useUI.getState().insertIntoComposer(query); closeDialog() }}>
                   <Plus size={13} /> New chat about “{query.slice(0, 24)}”
                 </button>
               </div>
@@ -104,9 +106,9 @@ export function SearchDialog() {
                 aria-selected={i === index}
                 onMouseEnter={() => setIndex(i)}
                 onClick={it.run}
-                className={cn('flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors', i === index ? 'bg-surface-3' : 'hover:bg-surface-2')}
+                className={cn('flex w-full items-center gap-3 rounded-(--radius-md) px-3 py-2.5 text-left transition-colors duration-(--duration-fast)', i === index ? 'bg-(--active)' : 'hover:bg-(--hover)')}
               >
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-line bg-surface text-fg-muted">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-(--radius-sm) bg-surface text-fg-muted shadow-[inset_0_0_0_1px_var(--line)]">
                   {it.kind === 'action' ? it.icon : it.favorite ? <Star size={14} className="fill-warning text-warning" /> : <MessageSquare size={14} />}
                 </span>
                 <span className="min-w-0 flex-1">
@@ -118,7 +120,7 @@ export function SearchDialog() {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-3 border-t border-line px-4 py-2 text-[11px] text-fg-subtle">
+          <div className="relative z-1 flex items-center gap-3 border-t border-line px-4 py-2 text-[11px] text-fg-subtle">
             <GemMark size={12} />
             <span>
               <kbd className="kbd">↑</kbd> <kbd className="kbd">↓</kbd> navigate

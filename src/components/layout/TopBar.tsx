@@ -5,10 +5,12 @@ import { Tooltip } from '@/components/ui/Tooltip'
 import { Logo } from './Logo'
 import { ConnectionStatus } from './ConnectionStatus'
 import { useIsMobile } from '@/hooks/useMediaQuery'
-import { modKey } from '@/lib/utils'
+import { cn, modKey } from '@/lib/utils'
 
+/** App chrome. Transparent — the glass panels below are the material; this row is quiet. */
 export function TopBar() {
   const toggleSidebar = useUI((s) => s.toggleSidebar)
+  const sidebarOpen = useUI((s) => s.sidebarOpen)
   const setDrawerOpen = useUI((s) => s.setDrawerOpen)
   const openDialog = useUI((s) => s.openDialog)
   const debugPanel = useSettings((s) => s.debugPanel)
@@ -16,16 +18,16 @@ export function TopBar() {
   const mod = modKey()
 
   return (
-    <header className="glass glass-1 glass-flat relative z-30 flex h-[52px] shrink-0 items-center justify-between border-x-0 border-t-0 px-2.5 shadow-none sm:px-3" style={{ borderRadius: 0 }}>
+    <header className="relative z-(--z-nav) flex h-[52px] shrink-0 items-center justify-between px-2.5 sm:px-3">
       <div className="flex items-center gap-1">
         {isMobile ? (
           <button className="icon-btn" onClick={() => setDrawerOpen(true)} aria-label="Open conversations">
             <MenuIcon size={19} />
           </button>
         ) : (
-          <Tooltip content="Toggle sidebar" shortcut={`${mod}+B`}>
-            <button className="icon-btn" onClick={toggleSidebar} aria-label="Toggle sidebar">
-              <PanelLeft size={19} />
+          <Tooltip content={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'} shortcut={`${mod}+B`}>
+            <button className={cn('icon-btn', sidebarOpen && 'text-fg')} onClick={toggleSidebar} aria-label="Toggle sidebar" aria-pressed={sidebarOpen}>
+              <PanelLeft size={19} className={cn('transition-transform duration-(--duration-base) ease-(--ease-spring)', !sidebarOpen && 'scale-x-[-1]')} />
             </button>
           </Tooltip>
         )}
@@ -34,8 +36,9 @@ export function TopBar() {
         </div>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-0.5">
         <ConnectionStatus compact={isMobile} />
+        <span className="mx-1 hidden h-5 w-px bg-line-strong sm:block" aria-hidden />
         <Tooltip content="Search" shortcut={`${mod}+K`}>
           <button className="icon-btn" onClick={() => openDialog('search')} aria-label="Search conversations">
             <Search size={18} />

@@ -10,11 +10,11 @@ export function Switch({ checked, onCheckedChange, disabled, id, 'aria-label': a
       onCheckedChange={onCheckedChange}
       aria-label={ariaLabel}
       className={cn(
-        'relative h-[26px] w-[44px] shrink-0 rounded-full border transition-colors duration-200 disabled:opacity-40',
-        checked ? 'border-transparent bg-[linear-gradient(135deg,#5b73ff,#7a5cff)]' : 'border-line-strong bg-surface-2',
+        'relative h-[26px] w-[44px] shrink-0 rounded-(--radius-pill) transition-[background-color,box-shadow] duration-(--duration-base) ease-(--ease-standard) disabled:opacity-40 active:[&>span]:w-[26px]',
+        checked ? 'bg-accent shadow-[inset_0_1px_0_rgba(255,255,255,0.25)]' : 'bg-surface-2 shadow-[inset_0_0_0_1px_var(--line-strong)]',
       )}
     >
-      <SwitchPrimitive.Thumb className="block h-[22px] w-[22px] translate-x-[1px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,0.3)] transition-transform duration-200 ease-spring data-[state=checked]:translate-x-[19px]" />
+      <SwitchPrimitive.Thumb className="block h-[22px] w-[22px] translate-x-[2px] rounded-(--radius-pill) bg-white shadow-[0_1px_2px_rgba(0,0,0,0.2),0_2px_6px_rgba(0,0,0,0.12)] transition-[transform,width] duration-(--duration-base) ease-(--ease-spring) data-[state=checked]:translate-x-[20px] active:data-[state=checked]:translate-x-[16px]" />
     </SwitchPrimitive.Root>
   )
 }

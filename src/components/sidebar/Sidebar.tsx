@@ -86,13 +86,13 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
             </button>
           </>
         ) : (
-          <span className="px-1 text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">Conversations</span>
+          <span className="eyebrow px-1">Conversations</span>
         )}
       </div>
 
       <div className="px-3">
         <Tooltip content="New chat" shortcut={`${mod}+N`} side="right">
-          <button className="btn-primary h-10 w-full justify-start rounded-2xl px-3.5" onClick={() => void handleNew()}>
+          <button className="btn btn-primary btn-lg h-10 w-full justify-start rounded-(--radius-md) px-3.5" onClick={() => void handleNew()}>
             <Plus size={17} strokeWidth={2.2} />
             <span>New Chat</span>
           </button>
@@ -105,24 +105,20 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search"
             aria-label="Search conversations"
-            className="field h-9 rounded-xl py-0 pl-9 pr-8 text-[13.5px]"
+            className="field h-9 rounded-(--radius-sm) py-0 pl-9 pr-8 text-[13.5px]"
           />
           {query && (
-            <button className="icon-btn absolute right-1 top-1/2 h-7 w-7 -translate-y-1/2" onClick={() => setQuery('')} aria-label="Clear search">
+            <button className="icon-btn icon-btn-xs enter-pop absolute right-1.5 top-1/2 -translate-y-1/2" onClick={() => setQuery('')} aria-label="Clear search">
               <X size={14} />
             </button>
           )}
         </div>
 
         <div className="mt-2 flex items-center gap-1.5">
-          <button
-            className={cn('pill h-7 cursor-pointer transition-colors', favoritesOnly ? 'border-warning/40 bg-warning/10 text-fg' : 'hover:bg-surface-2')}
-            onClick={() => setFavoritesOnly((v) => !v)}
-            aria-pressed={favoritesOnly}
-          >
-            <Star size={12} className={favoritesOnly ? 'fill-warning text-warning' : ''} /> Favorites
+          <button className={cn('pill pill-interactive', favoritesOnly && 'pill-on')} onClick={() => setFavoritesOnly((v) => !v)} aria-pressed={favoritesOnly}>
+            <Star size={12} className={cn('star-toggle', favoritesOnly && 'is-on fill-warning text-warning')} /> Favorites
           </button>
-          <button className="pill h-7 cursor-pointer transition-colors hover:bg-surface-2" onClick={() => openDialog('prompts')}>
+          <button className="pill pill-interactive" onClick={() => openDialog('prompts')}>
             <BookMarked size={12} /> Prompts
           </button>
         </div>
@@ -130,9 +126,12 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
 
       <nav className="mt-2 min-h-0 flex-1 overflow-y-auto px-2 pb-3" aria-label="Conversation list">
         {!loaded ? (
-          <div className="space-y-2 px-1 pt-1">
-            {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="skeleton h-14" style={{ opacity: 1 - i * 0.2 }} />
+          <div className="enter-fade space-y-1 px-1 pt-2" role="status" aria-label="Loading conversations">
+            {[0, 1, 2, 3, 4].map((i) => (
+              <div key={i} className="space-y-1.5 px-2 py-2" style={{ opacity: 1 - i * 0.16 }}>
+                <div className="skeleton h-3.5" style={{ width: `${62 + ((i * 23) % 30)}%` }} />
+                <div className="skeleton h-3 w-[40%]" />
+              </div>
             ))}
           </div>
         ) : showingSearch ? (
@@ -140,7 +139,7 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
             <EmptyState compact icon={<SearchX size={18} />} title="No matches" description={`Nothing in your conversations mentions “${activeQuery}”.`} />
           ) : (
             <div className="space-y-0.5">
-              <p className="px-2.5 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-fg-subtle">
+              <p className="eyebrow px-2.5 pb-1 pt-2">
                 {results.length} result{results.length === 1 ? '' : 's'}
               </p>
               {results.map((r) => (
@@ -164,19 +163,34 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
           )
         ) : grouped.length === 0 ? (
           favoritesOnly ? (
-            <EmptyState compact icon={<Star size={18} />} title="No favorites yet" description="Star a conversation from its menu to keep it close." />
+            <EmptyState
+              compact
+              icon={<Star size={18} />}
+              title="No favorites yet"
+              description="Star a conversation from its menu to keep it close."
+              action={
+                <button className="btn btn-secondary btn-sm" onClick={() => setFavoritesOnly(false)}>
+                  Show all
+                </button>
+              }
+            />
           ) : (
             <EmptyState
               compact
               icon={<MessageSquareDashed size={18} />}
               title="No conversations yet"
               description="Start a new chat and it will appear here — saved locally, always."
+              action={
+                <button className="btn btn-secondary btn-sm" onClick={() => void handleNew()}>
+                  <Plus size={14} /> New chat
+                </button>
+              }
             />
           )
         ) : (
           grouped.map(({ group, items }) => (
             <section key={group} className="mb-2">
-              <h3 className="sticky top-0 z-10 px-2.5 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wider text-fg-subtle backdrop-blur-sm">{group}</h3>
+              <h3 className="eyebrow sticky top-0 z-(--z-content) px-2.5 pb-1 pt-2 backdrop-blur-(--blur-sm)">{group}</h3>
               <div className="space-y-0.5">
                 {items.map((c) => (
                   <ConversationItem

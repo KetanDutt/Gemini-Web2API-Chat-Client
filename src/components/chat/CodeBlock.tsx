@@ -27,8 +27,11 @@ export const CodeBlock = memo(function CodeBlock({ language, code, children }: {
       <div className="code-block-head">
         <span className="font-medium tracking-wide">{label}</span>
         <button className="code-copy-btn" onClick={() => void copy()} aria-label={copied ? 'Copied' : 'Copy code'}>
-          {copied ? <Check size={13} className="text-success" /> : <Copy size={13} />}
-          {copied ? 'Copied ✓' : 'Copy'}
+          <span className="icon-swap" aria-hidden>
+            <Copy size={13} className={copied ? 'hidden-icon' : 'shown-icon'} />
+            <Check size={13} className={copied ? 'shown-icon text-success' : 'hidden-icon'} />
+          </span>
+          {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
       {children}

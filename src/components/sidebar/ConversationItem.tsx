@@ -1,5 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react'
-import { Download, MoreHorizontal, Pencil, Pin, PinOff, Star, Trash2, FileJson, FileText, FileType } from 'lucide-react'
+import { motion } from 'motion/react'
+import { ChevronRight, Download, MoreHorizontal, Pencil, Pin, PinOff, Star, Trash2, FileJson, FileText, FileType } from 'lucide-react'
 import { cn, formatRelative } from '@/lib/utils'
 import type { Conversation } from '@/types'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from '@/components/ui/Menu'
@@ -43,11 +44,19 @@ export const ConversationItem = memo(function ConversationItem({ conversation: c
   return (
     <div
       className={cn(
-        'group relative flex items-start gap-2 rounded-2xl px-2.5 transition-colors duration-150',
-        active ? 'bg-surface-3 shadow-[inset_0_0_0_1px_var(--line)]' : 'hover:bg-surface-2',
+        'group relative flex items-start gap-2 rounded-(--radius-md) px-2.5 transition-colors duration-(--duration-fast) ease-(--ease-standard)',
+        !active && 'hover:bg-(--hover)',
       )}
       style={{ paddingTop: 'var(--sidebar-item-py)', paddingBottom: 'var(--sidebar-item-py)' }}
     >
+      {active && (
+        <motion.span
+          layoutId="sidebar-active-pill"
+          aria-hidden
+          className="absolute inset-0 rounded-(--radius-md) bg-surface-3 shadow-[inset_0_0_0_1px_var(--glass-edge),var(--shadow-sm)]"
+          transition={{ type: 'spring', stiffness: 520, damping: 44, mass: 0.7 }}
+        />
+      )}
       {renaming ? (
         <input
           ref={inputRef}
@@ -59,12 +68,12 @@ export const ConversationItem = memo(function ConversationItem({ conversation: c
             if (e.key === 'Escape') onStartRename(null)
             e.stopPropagation()
           }}
-          className="field h-8 rounded-lg px-2 py-0 text-[13.5px]"
+          className="field field-sm relative z-1 h-8 py-0 text-[13.5px]"
           aria-label="Rename conversation"
         />
       ) : (
         <button
-          className="min-w-0 flex-1 text-left outline-none focus-visible:ring-2 focus-visible:ring-accent rounded-lg"
+          className="relative z-1 min-w-0 flex-1 rounded-(--radius-sm) text-left outline-none focus-visible:ring-2 focus-visible:ring-accent"
           onClick={() => onSelect(c.id)}
           onDoubleClick={() => onStartRename(c.id)}
           aria-current={active ? 'page' : undefined}
@@ -72,7 +81,7 @@ export const ConversationItem = memo(function ConversationItem({ conversation: c
           <div className="flex items-center gap-1.5">
             {c.pinned && <Pin size={11} className="shrink-0 text-accent" aria-label="Pinned" />}
             {c.favorite && <Star size={11} className="shrink-0 fill-warning text-warning" aria-label="Favorite" />}
-            <span className="truncate text-[13.5px] font-medium leading-5">{query ? <Highlight text={c.title} query={query} /> : c.title}</span>
+            <span className={cn('truncate text-[13.5px] leading-5', active ? 'font-semibold text-fg' : 'font-medium text-fg/90')}>{query ? <Highlight text={c.title} query={query} /> : c.title}</span>
           </div>
           {(snippet || c.preview) && (
             <p className="mt-0.5 truncate text-[12px] leading-4 text-fg-subtle">
@@ -87,7 +96,7 @@ export const ConversationItem = memo(function ConversationItem({ conversation: c
         <Menu open={menuOpen} onOpenChange={setMenuOpen}>
           <MenuTrigger asChild>
             <button
-              className={cn('icon-btn icon-btn-sm -mr-1 mt-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100', (active || menuOpen) && 'opacity-100')}
+              className={cn('icon-btn icon-btn-sm relative z-1 -mr-1 mt-0.5 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100', (active || menuOpen) && 'opacity-100')}
               aria-label={`Options for ${c.title}`}
             >
               <MoreHorizontal size={16} />
@@ -105,11 +114,11 @@ export const ConversationItem = memo(function ConversationItem({ conversation: c
             </MenuItem>
             <MenuSub>
               <MenuSubTrigger>
-                <span className="flex w-4 items-center justify-center opacity-80">
+                <span className="flex w-4 items-center justify-center text-fg-muted">
                   <Download size={14} />
                 </span>
                 <span className="flex-1">Export</span>
-                <span className="text-fg-subtle">›</span>
+                <ChevronRight size={14} className="text-fg-subtle" />
               </MenuSubTrigger>
               <MenuSubContent>
                 <MenuItem icon={<FileText size={14} />} onSelect={() => onExport(c.id, 'markdown')}>

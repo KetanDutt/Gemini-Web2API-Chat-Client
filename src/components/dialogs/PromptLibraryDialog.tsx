@@ -64,7 +64,7 @@ export function PromptLibraryPanel({ embedded }: { embedded?: boolean }) {
 
   if (draft) {
     return (
-      <div className="animate-fade-in">
+      <div className="enter-rise">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-[15px] font-semibold">{draft.id ? 'Edit prompt' : 'New prompt'}</h3>
           <button className="icon-btn icon-btn-sm" onClick={() => setDraft(null)} aria-label="Cancel">
@@ -97,14 +97,14 @@ export function PromptLibraryPanel({ embedded }: { embedded?: boolean }) {
             <textarea value={draft.text} onChange={(e) => setDraft({ ...draft, text: e.target.value })} rows={7} className="field resize-y text-[14px] leading-relaxed" placeholder="Review the following code…" />
           </label>
           <div className="flex items-center justify-between">
-            <button className={cn('pill h-8 cursor-pointer', draft.favorite && 'border-warning/40 bg-warning/10 text-fg')} onClick={() => setDraft({ ...draft, favorite: !draft.favorite })}>
-              <Star size={12} className={draft.favorite ? 'fill-warning text-warning' : ''} /> Favorite
+            <button type="button" className={cn('pill pill-interactive h-8', draft.favorite && 'pill-on')} onClick={() => setDraft({ ...draft, favorite: !draft.favorite })} aria-pressed={draft.favorite}>
+              <Star size={12} className={cn('star-toggle', draft.favorite && 'is-on fill-warning text-warning')} /> Favorite
             </button>
             <div className="flex gap-2">
-              <button className="btn-glass" onClick={() => setDraft(null)}>
+              <button className="btn btn-secondary" onClick={() => setDraft(null)}>
                 Cancel
               </button>
-              <button className="btn-primary" onClick={() => void save()} disabled={!draft.name.trim() || !draft.text.trim()}>
+              <button className="btn btn-primary" onClick={() => void save()} disabled={!draft.name.trim() || !draft.text.trim()}>
                 {draft.id ? 'Save changes' : 'Save prompt'}
               </button>
             </div>
@@ -121,13 +121,13 @@ export function PromptLibraryPanel({ embedded }: { embedded?: boolean }) {
           <Search size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-fg-subtle" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search prompts" className="field h-9 py-0 pl-9 text-[13.5px]" aria-label="Search prompts" />
         </div>
-        <button className="btn-primary h-9" onClick={() => setDraft(emptyDraft())}>
+        <button className="btn btn-primary h-9" onClick={() => setDraft(emptyDraft())}>
           <Plus size={15} /> New prompt
         </button>
       </div>
       <div className="mb-3 flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
         {(['All', 'Favorites', ...PROMPT_CATEGORIES] as const).map((c) => (
-          <button key={c} onClick={() => setCategory(c)} className={cn('pill h-7 shrink-0 cursor-pointer transition-colors', category === c ? 'border-accent/40 bg-accent-soft text-fg' : 'hover:bg-surface-2')}>
+          <button key={c} onClick={() => setCategory(c)} className={cn('pill pill-interactive shrink-0', category === c && 'pill-on')} aria-pressed={category === c}>
             {c === 'Favorites' && <Star size={11} />}
             {c}
           </button>
@@ -139,12 +139,12 @@ export function PromptLibraryPanel({ embedded }: { embedded?: boolean }) {
           icon={<BookMarked size={20} />}
           title={prompts.length === 0 ? 'Your library is empty' : 'No prompts match'}
           description={prompts.length === 0 ? 'Save the prompts you keep retyping and insert them with one click.' : 'Try another category or search term.'}
-          action={prompts.length === 0 ? <button className="btn-glass" onClick={() => setDraft(emptyDraft())}><Plus size={14} /> Create a prompt</button> : undefined}
+          action={prompts.length === 0 ? <button className="btn btn-secondary" onClick={() => setDraft(emptyDraft())}><Plus size={14} /> Create a prompt</button> : undefined}
         />
       ) : (
         <ul className="grid gap-2 sm:grid-cols-2">
-          {filtered.map((p) => (
-            <li key={p.id} className="group relative rounded-[18px] border border-line bg-surface p-3.5 transition-colors hover:bg-surface-2">
+          {filtered.map((p, i) => (
+            <li key={p.id} className="group-panel surface-hover enter-rise group relative p-3.5" style={{ animationDelay: `${Math.min(i, 8) * 30}ms` }}>
               <button className="block w-full text-left" onClick={() => use(p)}>
                 <div className="flex items-start gap-2 pr-16">
                   <span className="min-w-0 flex-1">
@@ -153,16 +153,16 @@ export function PromptLibraryPanel({ embedded }: { embedded?: boolean }) {
                   </span>
                 </div>
                 <p className="mt-2 line-clamp-2 text-[12.5px] leading-relaxed text-fg-subtle">{p.text}</p>
-                <span className="mt-2 inline-block rounded-md bg-surface-2 px-1.5 py-0.5 text-[10.5px] font-medium uppercase tracking-wider text-fg-subtle">{p.category}</span>
+                <span className="mt-2 inline-block rounded-(--radius-xs) bg-surface-2 px-1.5 py-0.5 text-[10.5px] font-medium uppercase tracking-wider text-fg-subtle">{p.category}</span>
               </button>
-              <div className="absolute right-2 top-2 flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100" style={p.favorite ? { opacity: 1 } : undefined}>
-                <button className="icon-btn h-7 w-7" onClick={() => void toggleFavorite(p.id)} aria-label={p.favorite ? 'Unfavorite' : 'Favorite'}>
-                  <Star size={13} className={p.favorite ? 'fill-warning text-warning' : ''} />
+              <div className="absolute right-2 top-2 flex items-center gap-0.5 opacity-0 transition-opacity duration-(--duration-fast) group-hover:opacity-100 focus-within:opacity-100" style={p.favorite ? { opacity: 1 } : undefined}>
+                <button className="icon-btn icon-btn-xs" onClick={() => void toggleFavorite(p.id)} aria-label={p.favorite ? 'Unfavorite' : 'Favorite'} aria-pressed={p.favorite}>
+                  <Star size={13} className={cn('star-toggle', p.favorite && 'is-on fill-warning text-warning')} />
                 </button>
-                <button className="icon-btn h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => setDraft({ id: p.id, name: p.name, description: p.description ?? '', text: p.text, category: p.category, favorite: p.favorite })} aria-label="Edit prompt">
+                <button className="icon-btn icon-btn-xs opacity-0 group-hover:opacity-100" onClick={() => setDraft({ id: p.id, name: p.name, description: p.description ?? '', text: p.text, category: p.category, favorite: p.favorite })} aria-label="Edit prompt">
                   <Pencil size={13} />
                 </button>
-                <button className="icon-btn h-7 w-7 opacity-0 hover:!text-danger group-hover:opacity-100" onClick={() => { void remove(p.id); toast.success('Prompt deleted') }} aria-label="Delete prompt">
+                <button className="icon-btn icon-btn-xs opacity-0 hover:!text-danger group-hover:opacity-100" onClick={() => { void remove(p.id); toast.success('Prompt deleted') }} aria-label="Delete prompt">
                   <Trash2 size={13} />
                 </button>
               </div>

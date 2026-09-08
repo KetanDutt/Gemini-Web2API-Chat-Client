@@ -25,7 +25,7 @@ export function ConnectionStatus({ compact }: { compact?: boolean }) {
     <Popover.Root>
       <Popover.Trigger asChild>
         <button
-          className={cn('pill h-8 cursor-pointer transition-colors hover:bg-surface-2', compact && 'px-2')}
+          className={cn('pill pill-interactive h-8 data-[state=open]:bg-surface-2', compact && 'px-2.5')}
           aria-label={`Connection status: ${LABELS[state]}`}
           title={LABELS[state]}
         >
@@ -34,7 +34,7 @@ export function ConnectionStatus({ compact }: { compact?: boolean }) {
         </button>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content align="end" sideOffset={8} collisionPadding={8} className="glass glass-4 z-[95] w-[300px] rounded-[22px] p-4 text-[13px] animate-rise outline-none">
+        <Popover.Content align="end" sideOffset={8} collisionPadding={8} className="glass-float motion-pop z-(--z-popover) w-[300px] origin-(--radix-popover-content-transform-origin) rounded-(--radius-lg) p-4 text-[13px] outline-none">
           <div className="mb-3 flex items-center gap-2">
             {state === 'connected' ? <Wifi size={16} className="text-success" /> : <WifiOff size={16} className={state === 'checking' ? 'text-warning' : 'text-danger'} />}
             <span className="font-semibold">{LABELS[state]}</span>
@@ -46,17 +46,17 @@ export function ConnectionStatus({ compact }: { compact?: boolean }) {
             <Row label="Latency" value={formatLatency(lastLatencyMs)} />
           </dl>
           {lastError && state !== 'connected' && (
-            <div className="mt-3 rounded-xl border border-danger/30 bg-danger/10 p-2.5 text-[12.5px]">
+            <div className="mt-3 rounded-(--radius-sm) bg-(--danger-soft) p-2.5 text-[12.5px] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--danger)_25%,transparent)]">
               <p className="font-medium text-danger">{lastError.title}</p>
               <p className="mt-0.5 text-fg-muted">{lastError.message}</p>
             </div>
           )}
           <div className="mt-3 flex gap-2">
-            <button className="btn-glass h-8 flex-1 text-xs" onClick={() => void test()} disabled={state === 'checking'}>
-              <RefreshCw size={13} className={state === 'checking' ? 'animate-spin' : ''} /> Test again
+            <button className="btn btn-secondary btn-sm flex-1" onClick={() => void test()} disabled={state === 'checking'}>
+              <RefreshCw size={13} className={state === 'checking' ? 'animate-spin-slow' : ''} /> Test again
             </button>
             <Popover.Close asChild>
-              <button className="btn-glass h-8 flex-1 text-xs" onClick={() => openDialog('settings', 'api')}>
+              <button className="btn btn-secondary btn-sm flex-1" onClick={() => openDialog('settings', 'api')}>
                 <Settings2 size={13} /> API settings
               </button>
             </Popover.Close>

@@ -49,21 +49,21 @@ export function ModelSelector({ value, onChange, compact, align = 'start', side 
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger asChild>
         <button
-          className={cn('btn-glass h-8 max-w-[220px] gap-1.5 rounded-full border-transparent bg-transparent px-2.5 text-[13px] hover:border-line', compact && 'max-w-[150px]')}
+          className={cn('btn btn-ghost btn-sm h-8 max-w-[220px] gap-1.5 px-2.5 text-[13px] text-fg data-[state=open]:bg-(--hover)', compact && 'max-w-[150px]')}
           aria-label={`Model: ${modelLabel(value)}`}
         >
           <Sparkles size={14} className="shrink-0 text-accent" />
           <span className="truncate">{modelLabel(value)}</span>
-          <ChevronDown size={13} className="shrink-0 text-fg-subtle" />
+          <ChevronDown size={13} className="icon-rotate shrink-0 text-fg-subtle" />
         </button>
       </Popover.Trigger>
       <Popover.Portal>
-        <Popover.Content align={align} side={side} sideOffset={8} collisionPadding={8} className="glass glass-4 z-[95] w-[300px] rounded-[22px] p-2 animate-rise outline-none">
+        <Popover.Content align={align} side={side} sideOffset={8} collisionPadding={8} className="glass-float motion-pop z-(--z-popover) w-[300px] origin-(--radix-popover-content-transform-origin) rounded-(--radius-lg) p-2 outline-none">
           <div className="flex items-center justify-between px-2 pb-1.5 pt-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-fg-subtle">Models</span>
+            <span className="eyebrow">Models</span>
             {listingCap !== 'unsupported' && (
               <button
-                className="icon-btn h-6 w-6"
+                className="icon-btn icon-btn-xs"
                 aria-label="Refresh model list"
                 disabled={refreshing}
                 onClick={() => {
@@ -73,7 +73,7 @@ export function ModelSelector({ value, onChange, compact, align = 'start', side 
                     .finally(() => setRefreshing(false))
                 }}
               >
-                <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
+                <RefreshCw size={12} className={refreshing ? 'animate-spin-slow' : ''} />
               </button>
             )}
           </div>
@@ -83,7 +83,7 @@ export function ModelSelector({ value, onChange, compact, align = 'start', side 
               return (
                 <button
                   key={m.id}
-                  className={cn('menu-item text-left', active && 'bg-surface-2')}
+                  className={cn('menu-item text-left', active && 'is-active')}
                   onClick={() => {
                     onChange(m.id)
                     setOpen(false)
@@ -111,7 +111,7 @@ export function ModelSelector({ value, onChange, compact, align = 'start', side 
               addCustom()
             }}
           >
-            <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="Custom model ID…" className="field h-8 flex-1 rounded-lg px-2.5 py-0 font-mono text-[12px]" aria-label="Custom model ID" />
+            <input value={custom} onChange={(e) => setCustom(e.target.value)} placeholder="Custom model ID…" className="field field-sm h-8 flex-1 py-0 font-mono text-[12px]" aria-label="Custom model ID" />
             <button type="submit" className="icon-btn icon-btn-sm" aria-label="Use custom model" disabled={!custom.trim()}>
               <Plus size={15} />
             </button>

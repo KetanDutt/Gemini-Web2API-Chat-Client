@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
-import { Download, Eraser, FileJson, FileText, FileType, MoreHorizontal, Pencil, ScrollText, Star, Trash2 } from 'lucide-react'
+import { ChevronRight, Download, Eraser, FileJson, FileText, FileType, MoreHorizontal, Pencil, ScrollText, Star, Trash2 } from 'lucide-react'
 import { useConversations } from '@/stores/conversationStore'
 import { useUI } from '@/stores/uiStore'
 import { ModelSelector } from './ModelSelector'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from '@/components/ui/Menu'
 import { ConfirmDialog, GlassDialog } from '@/components/ui/Dialog'
-import { downloadFile } from '@/lib/utils'
+import { cn, downloadFile } from '@/lib/utils'
 import { exportFilename, serializeConversation } from '@/services/exportImport'
 import { toast } from '@/hooks/useToast'
 import type { ExportFormat } from '@/types'
 import { useSettings } from '@/stores/settingsStore'
 import { useConnection } from '@/stores/connectionStore'
 
-export function ChatHeader() {
+export function ChatHeader({ scrolled = false }: { scrolled?: boolean }) {
   const conv = useConversations((s) => s.conversations.find((c) => c.id === s.activeId))
   const setConversationModel = useConversations((s) => s.setConversationModel)
   const toggleFavorite = useConversations((s) => s.toggleFavorite)
@@ -59,7 +59,12 @@ export function ChatHeader() {
   }
 
   return (
-    <div className="relative z-20 flex h-12 shrink-0 items-center justify-between gap-2 px-2 sm:px-4">
+    <div
+      className={cn(
+        'relative z-(--z-panel) flex h-12 shrink-0 items-center justify-between gap-2 px-2 transition-[background-color,box-shadow] duration-(--duration-slow) ease-(--ease-standard) sm:px-4',
+        scrolled ? 'bg-(--glass-md-bg) shadow-[0_1px_0_var(--line)] backdrop-blur-(--blur-md) backdrop-saturate-150' : 'bg-transparent',
+      )}
+    >
       <div className="flex min-w-0 items-center gap-1">
         <ModelSelector value={model} onChange={onModel} side="bottom" />
         {conv && (
@@ -77,12 +82,12 @@ export function ChatHeader() {
                   if (e.key === 'Enter') commitRename()
                   if (e.key === 'Escape') setRenaming(false)
                 }}
-                className="field h-8 w-[min(40vw,320px)] rounded-lg px-2 py-0 text-[13.5px]"
+                className="field field-sm h-8 w-[min(40vw,320px)] py-0 text-[13.5px]"
                 aria-label="Conversation title"
               />
             ) : (
               <button
-                className="hidden min-w-0 max-w-[30vw] truncate rounded-lg px-2 py-1 text-[13.5px] font-medium text-fg-muted transition-colors hover:bg-surface-2 hover:text-fg sm:block"
+                className="hidden h-8 min-w-0 max-w-[30vw] truncate rounded-(--radius-sm) px-2 text-[13.5px] font-medium text-fg-muted transition-colors duration-(--duration-fast) hover:bg-(--hover) hover:text-fg sm:block"
                 onClick={startRename}
                 title="Rename conversation"
               >
@@ -101,7 +106,7 @@ export function ChatHeader() {
       {conv && (
         <div className="flex items-center gap-0.5">
           <button className="icon-btn" onClick={() => void toggleFavorite(conv.id)} aria-label={conv.favorite ? 'Remove favorite' : 'Add to favorites'} aria-pressed={conv.favorite}>
-            <Star size={17} className={conv.favorite ? 'fill-warning text-warning' : ''} />
+            <Star size={17} className={cn('star-toggle', conv.favorite && 'is-on fill-warning text-warning')} />
           </button>
           <Menu>
             <MenuTrigger asChild>
@@ -125,11 +130,11 @@ export function ChatHeader() {
               </MenuItem>
               <MenuSub>
                 <MenuSubTrigger>
-                  <span className="flex w-4 items-center justify-center opacity-80">
+                  <span className="flex w-4 items-center justify-center text-fg-muted">
                     <Download size={14} />
                   </span>
                   <span className="flex-1">Export</span>
-                  <span className="text-fg-subtle">›</span>
+                  <ChevronRight size={14} className="text-fg-subtle" />
                 </MenuSubTrigger>
                 <MenuSubContent>
                   <MenuItem icon={<FileText size={14} />} onSelect={() => void exportAs('markdown')}>
@@ -180,11 +185,11 @@ export function ChatHeader() {
             {sysCap === 'supported' ? 'Your Web2API server accepted system messages.' : 'Support depends on your Web2API version — if the server rejects it, GlassGem stops sending it automatically.'}
           </p>
           <div className="mt-4 flex justify-end gap-2">
-            <button className="btn-glass" onClick={() => setSysOpen(false)}>
+            <button className="btn btn-secondary" onClick={() => setSysOpen(false)}>
               Cancel
             </button>
             <button
-              className="btn-primary"
+              className="btn btn-primary"
               onClick={async () => {
                 if (conv) await setSystemPrompt(conv.id, sysDraft)
                 setSysOpen(false)

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { motion } from 'motion/react'
 import { AlertTriangle, BookMarked, Check, Database, Eye, EyeOff, Info, Loader2, MessageSquare, Monitor, Moon, Plug, RefreshCw, Shield, Sliders, Sun, Trash2, Upload, Download, Wifi, WifiOff, ExternalLink } from 'lucide-react'
 import { GlassDialog, ConfirmDialog } from '@/components/ui/Dialog'
 import { Switch } from '@/components/ui/Switch'
@@ -40,23 +41,34 @@ export function SettingsDialog() {
     <GlassDialog open={open} onOpenChange={(o) => !o && closeDialog()} title="Settings" size="xl" className="h-[min(88dvh,760px)]">
       <div className={cn('flex min-h-0 flex-1', isMobile ? 'flex-col' : 'flex-row')}>
         <nav className={cn('shrink-0', isMobile ? 'flex gap-1 overflow-x-auto px-4 pb-2 no-scrollbar' : 'w-44 border-r border-line px-3 py-2')} aria-label="Settings sections">
-          {TABS.map((t) => (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={cn(
-                'flex items-center gap-2.5 rounded-xl text-[13.5px] transition-colors',
-                isMobile ? 'shrink-0 px-3 py-1.5' : 'mb-0.5 w-full px-3 py-2',
-                tab === t.id ? 'bg-surface-3 font-medium text-fg' : 'text-fg-muted hover:bg-surface-2 hover:text-fg',
-              )}
-              aria-current={tab === t.id ? 'page' : undefined}
-            >
-              <t.icon size={15} className={tab === t.id ? 'text-accent' : ''} />
-              {t.label}
-            </button>
-          ))}
+          {TABS.map((t) => {
+            const active = tab === t.id
+            return (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={cn(
+                  'relative flex items-center gap-2.5 rounded-(--radius-sm) text-[13.5px] transition-colors duration-(--duration-fast)',
+                  isMobile ? 'shrink-0 px-3 py-1.5' : 'mb-0.5 w-full px-3 py-2',
+                  active ? 'font-medium text-fg' : 'text-fg-muted hover:bg-(--hover) hover:text-fg',
+                )}
+                aria-current={active ? 'page' : undefined}
+              >
+                {active && (
+                  <motion.span
+                    layoutId="settings-tab-pill"
+                    aria-hidden
+                    className="absolute inset-0 rounded-(--radius-sm) bg-surface-3 shadow-[inset_0_0_0_1px_var(--glass-edge),var(--shadow-sm)]"
+                    transition={{ type: 'spring', stiffness: 520, damping: 44, mass: 0.7 }}
+                  />
+                )}
+                <t.icon size={15} className={cn('relative z-1 transition-colors duration-(--duration-fast)', active && 'text-accent')} />
+                <span className="relative z-1">{t.label}</span>
+              </button>
+            )
+          })}
         </nav>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-7">
+        <div key={tab} className="enter-rise min-h-0 flex-1 overflow-y-auto px-5 py-4 sm:px-7">
           {tab === 'general' && <GeneralTab />}
           {tab === 'api' && <ApiTab />}
           {tab === 'chat' && <ChatTab />}
@@ -206,12 +218,12 @@ export function ApiForm({ onConnected, compact }: { onConnected?: () => void; co
       </div>
 
       <div className="flex flex-wrap items-center gap-2 pt-1">
-        <button className="btn-primary" onClick={() => void test()} disabled={testing || !urlValid}>
-          {testing ? <Loader2 size={15} className="animate-spin" /> : <Plug size={15} />}
+        <button className="btn btn-primary" onClick={() => void test()} disabled={testing || !urlValid}>
+          {testing ? <Loader2 size={15} className="animate-spin-slow" /> : <Plug size={15} />}
           Test Connection
         </button>
         {!compact && (
-          <button className="btn-glass" onClick={save} disabled={!dirty || !urlValid}>
+          <button className="btn btn-secondary" onClick={save} disabled={!dirty || !urlValid}>
             Save
           </button>
         )}
@@ -233,7 +245,7 @@ export function ApiForm({ onConnected, compact }: { onConnected?: () => void; co
       </div>
 
       {err && (connection.state === 'offline' || connection.state === 'error') && (
-        <div className="rounded-2xl border border-danger/25 bg-danger/[0.07] p-3.5 text-[13px]" role="alert">
+        <div className="enter-pop rounded-(--radius-lg) bg-(--danger-soft) p-3.5 text-[13px] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--danger)_25%,transparent)]" role="alert">
           <div className="flex gap-2.5">
             <WifiOff size={16} className="mt-0.5 shrink-0 text-danger" />
             <div>
@@ -246,7 +258,7 @@ export function ApiForm({ onConnected, compact }: { onConnected?: () => void; co
         </div>
       )}
       {connection.state === 'connected' && !compact && (
-        <div className="rounded-2xl border border-success/25 bg-success/[0.07] p-3.5 text-[13px]">
+        <div className="enter-pop rounded-(--radius-lg) bg-(--success-soft) p-3.5 text-[13px] shadow-[inset_0_0_0_1px_color-mix(in_oklab,var(--success)_25%,transparent)]">
           <div className="flex gap-2.5">
             <Wifi size={16} className="mt-0.5 shrink-0 text-success" />
             <div>
@@ -282,7 +294,7 @@ function ApiTab() {
         </FieldRow>
         <FieldRow label="Model list" description="Refresh models from GET /v1/models.">
           <button
-            className="btn-glass h-8 text-[13px]"
+            className="btn btn-secondary btn-sm"
             disabled={refreshing}
             onClick={() => {
               setRefreshing(true)
@@ -292,7 +304,7 @@ function ApiTab() {
                 .finally(() => setRefreshing(false))
             }}
           >
-            <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} /> Refresh
+            <RefreshCw size={13} className={refreshing ? 'animate-spin-slow' : ''} /> Refresh
           </button>
         </FieldRow>
       </Section>
@@ -301,7 +313,7 @@ function ApiTab() {
           <CapRow key={k} name={CAPABILITY_LABELS[k].label} desc={CAPABILITY_LABELS[k].description} state={caps[k]} />
         ))}
         <FieldRow label="Re-detect" description="Forget detected capabilities and probe again on the next request.">
-          <button className="btn-glass h-8 text-[13px]" onClick={() => { resetCaps(); toast.info('Capabilities reset') }}>
+          <button className="btn btn-secondary btn-sm" onClick={() => { resetCaps(); toast.info('Capabilities reset') }}>
             Reset
           </button>
         </FieldRow>
@@ -318,7 +330,7 @@ function CapRow({ name, desc, state }: { name: string; desc: string; state: Capa
         <p className="text-[13.5px] font-medium">{name}</p>
         <p className="text-[12px] text-fg-subtle">{desc}</p>
       </div>
-      <span className={cn('pill h-6', s === 'supported' && 'border-success/30 bg-success/10 text-success', s === 'unsupported' && 'border-danger/30 bg-danger/10 text-danger')}>
+      <span className={cn('pill h-6', s === 'supported' && 'pill-success', s === 'unsupported' && 'pill-danger')}>
         {s === 'supported' ? <Check size={11} /> : s === 'unsupported' ? <AlertTriangle size={11} /> : null}
         {s === 'supported' ? 'Supported' : s === 'unsupported' ? 'Unsupported' : 'Unknown'}
       </span>
@@ -436,14 +448,14 @@ function PrivacyTab() {
           <p className="mt-2">Gemini authentication cookies live only on the Web2API server — GlassGem never sees or stores them.</p>
         </div>
         <FieldRow label="Clear API credentials" description="Removes the stored API key. You'll be asked for it again.">
-          <button className="btn-glass h-8 text-[13px]" onClick={() => setConfirmCreds(true)} disabled={!s.apiKey}>
+          <button className="btn btn-secondary btn-sm" onClick={() => setConfirmCreds(true)} disabled={!s.apiKey}>
             Clear key
           </button>
         </FieldRow>
       </Section>
       <Section title="Danger zone">
         <FieldRow label="Clear all conversations" description="Permanently deletes every conversation and message from this device.">
-          <button className="btn-danger h-8 text-[13px]" onClick={() => setConfirmDelete(true)} disabled={convCount === 0}>
+          <button className="btn btn-danger-soft btn-sm" onClick={() => setConfirmDelete(true)} disabled={convCount === 0}>
             <Trash2 size={13} /> Delete all
           </button>
         </FieldRow>
@@ -514,30 +526,30 @@ function DataTab() {
     <>
       <Section title="Backup" description="A single JSON file containing all conversations and saved prompts.">
         <FieldRow label="Export all data" description="Downloads glassgem-backup-YYYY-MM-DD.json">
-          <button className="btn-glass h-8 text-[13px]" onClick={() => void exportAll()} disabled={busy}>
+          <button className="btn btn-secondary btn-sm" onClick={() => void exportAll()} disabled={busy}>
             <Download size={13} /> Export
           </button>
         </FieldRow>
         <FieldRow label="Import data" description="Accepts GlassGem JSON exports (single conversation or full backup). Malformed files are rejected safely.">
           <input ref={fileRef} type="file" accept="application/json,.json" className="hidden" onChange={(e) => e.target.files?.[0] && void onFile(e.target.files[0])} />
-          <button className="btn-glass h-8 text-[13px]" onClick={() => fileRef.current?.click()} disabled={busy}>
+          <button className="btn btn-secondary btn-sm" onClick={() => fileRef.current?.click()} disabled={busy}>
             <Upload size={13} /> Import
           </button>
         </FieldRow>
       </Section>
       <Section title="Remove">
         <FieldRow label="Delete all conversations" description="Messages and conversations only. Settings and prompts are kept.">
-          <button className="btn-danger h-8 text-[13px]" onClick={() => setConfirm('conversations')}>
+          <button className="btn btn-danger-soft btn-sm" onClick={() => setConfirm('conversations')}>
             Delete
           </button>
         </FieldRow>
         <FieldRow label="Clear settings" description="Restores default preferences and API configuration.">
-          <button className="btn-glass h-8 text-[13px]" onClick={() => setConfirm('settings')}>
+          <button className="btn btn-secondary btn-sm" onClick={() => setConfirm('settings')}>
             Clear
           </button>
         </FieldRow>
         <FieldRow label="Reset application" description="Deletes everything: conversations, prompts, settings, and detected capabilities. Shows the first-run setup again.">
-          <button className="btn-danger h-8 text-[13px]" onClick={() => setConfirm('reset')}>
+          <button className="btn btn-danger-soft btn-sm" onClick={() => setConfirm('reset')}>
             Reset
           </button>
         </FieldRow>

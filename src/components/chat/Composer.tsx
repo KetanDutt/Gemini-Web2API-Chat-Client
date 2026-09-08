@@ -112,11 +112,11 @@ export function Composer() {
   const charCount = value.length
 
   return (
-    <div className="relative z-20 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-1 sm:px-6 sm:pb-5">
+    <div className="relative z-(--z-panel) px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-1 sm:px-6 sm:pb-5">
       <div
         className={cn(
-          'glass glass-5 mx-auto w-full max-w-3xl rounded-[26px] transition-[box-shadow,border-color,transform] duration-300 ease-out-expo',
-          focused && 'border-accent/40 shadow-[0_0_0_4px_var(--accent-soft),var(--glass-shadow)]',
+          'glass-md mx-auto w-full max-w-3xl rounded-(--radius-xl) transition-[box-shadow,border-color] duration-(--duration-slow) ease-(--ease-standard)',
+          focused && 'border-(--accent-ring) shadow-[inset_0_0_0_1px_var(--glass-edge),0_0_0_4px_var(--accent-soft),var(--shadow-md)]',
         )}
       >
         <label htmlFor="composer" className="sr-only">
@@ -132,12 +132,12 @@ export function Composer() {
           onBlur={() => setFocused(false)}
           placeholder={generating ? 'Gemini is responding…' : 'Message Gemini…'}
           rows={1}
-          className="block w-full resize-none bg-transparent px-5 pt-4 pb-2 text-[15.5px] leading-relaxed outline-none placeholder:text-fg-subtle"
+          className="relative z-1 block w-full resize-none bg-transparent px-5 pt-4 pb-2 text-[15.5px] leading-relaxed outline-none placeholder:text-fg-subtle"
           style={{ paddingTop: 'var(--composer-pad)', maxHeight: MAX_HEIGHT }}
           autoComplete="off"
           spellCheck
         />
-        <div className="flex items-center justify-between gap-2 px-2.5 pb-2.5">
+        <div className="relative z-1 flex items-center justify-between gap-2 px-2.5 pb-2.5">
           <div className="flex min-w-0 items-center gap-0.5">
             <Tooltip content={imageCap === 'supported' ? 'Attach image' : 'Attachments are unavailable with the current Web2API configuration.'}>
               <span>
@@ -176,25 +176,27 @@ export function Composer() {
             {generating ? (
               <Tooltip content="Stop generating">
                 <button
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-fg text-[var(--bg)] transition-transform hover:scale-105 active:scale-95"
+                  className="enter-pop flex h-9 w-9 items-center justify-center rounded-(--radius-pill) bg-fg text-(--bg) shadow-(--shadow-sm) transition-transform duration-(--duration-fast) ease-(--ease-spring) hover:scale-105 active:scale-92"
                   onClick={() => stopGeneration(activeId ?? undefined)}
                   aria-label="Stop generating"
                 >
-                  <Square size={14} fill="currentColor" />
+                  <Square size={13} fill="currentColor" />
                 </button>
               </Tooltip>
             ) : (
               <Tooltip content="Send">
                 <button
                   className={cn(
-                    'flex h-9 w-9 items-center justify-center rounded-full text-white transition-[transform,opacity,box-shadow] duration-200',
-                    canSend ? 'bg-[linear-gradient(135deg,#5b73ff,#7a5cff)] shadow-[0_8px_20px_-6px_var(--accent-glow)] hover:scale-105 active:scale-95' : 'bg-fg-subtle/40 opacity-60',
+                    'flex h-9 w-9 items-center justify-center rounded-(--radius-pill) transition-[transform,opacity,box-shadow,background-color,color] duration-(--duration-base) ease-(--ease-spring)',
+                    canSend
+                      ? 'bg-accent text-(--fg-on-accent) shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_6px_16px_-6px_var(--accent-ring)] hover:scale-105 hover:bg-(--accent-hover) active:scale-92'
+                      : 'bg-(--active) text-fg-subtle',
                   )}
                   onClick={submit}
                   disabled={!canSend}
                   aria-label="Send message"
                 >
-                  <ArrowUp size={18} strokeWidth={2.4} />
+                  <ArrowUp size={18} strokeWidth={2.4} className={cn('transition-transform duration-(--duration-base) ease-(--ease-spring)', canSend ? 'translate-y-0' : 'translate-y-px')} />
                 </button>
               </Tooltip>
             )}
