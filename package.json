@@ -3,6 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
+  "main": "electron/main.cjs",
   "description": "GlassGem — a Liquid Glass chat client for Gemini Web2API",
   "scripts": {
     "dev": "vite",
@@ -10,7 +11,12 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "lint": "eslint .",
-    "mock": "node scripts/mock-web2api.mjs"
+    "mock": "node scripts/mock-web2api.mjs",
+    "desktop": "electron .",
+    "desktop:dev": "node scripts/desktop-dev.mjs",
+    "desktop:build": "npm run build && electron-builder --win",
+    "desktop:build:portable": "npm run build && electron-builder --win portable",
+    "desktop:pack": "npm run build && electron-builder --win --dir"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.14",
@@ -39,9 +45,49 @@
     "@types/react": "^19.1.12",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.2",
+    "electron": "^38.1.0",
+    "electron-builder": "^26.0.12",
     "tailwindcss": "^4.1.13",
     "typescript": "~5.9.2",
     "vite": "^7.1.5",
     "vite-plugin-pwa": "^1.0.3"
+  },
+  "build": {
+    "appId": "com.ketandutt.glassgem",
+    "productName": "GlassGem",
+    "asar": true,
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "package.json"
+    ],
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64", "arm64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "GlassGem",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "deleteAppDataOnUninstall": false
+    }
   }
 }

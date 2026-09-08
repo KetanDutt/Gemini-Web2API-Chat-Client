@@ -36,10 +36,10 @@ Design language: Apple-inspired *Liquid Glass* — translucent layered surfaces,
 
 | Requirement | Notes |
 | --- | --- |
-| **Windows 11** (or macOS / Linux) | Any OS with Node.js works; the launcher scripts are for Windows. |
-| **Node.js 20 or newer** | Download the LTS installer from <https://nodejs.org>. Verify with `node -v`. |
-| **Gemini Web2API** | Running locally, e.g. at `http://127.0.0.1:8081`. |
-| A modern browser | Chrome, Edge, Firefox or Safari. Edge/Chrome also let you install GlassGem as an app. |
+| **Windows 11** (or macOS / Linux) | The browser client runs anywhere Node.js works; the native desktop build targets Windows 10/11. |
+| **Node.js 20 or newer** | Needed to develop or build GlassGem. The finished Windows installer includes its own runtime. Download the LTS installer from <https://nodejs.org>. |
+| **Gemini Web2API** | Running locally, e.g. at `http://127.0.0.1:8081`. GlassGem does not bundle the API server. |
+| A modern browser | Needed for the web/PWA client. A browser is not needed after installing the native Windows app. |
 
 ## 2. Installation
 
@@ -82,9 +82,10 @@ Double-click **`run.bat`**. It checks Node.js (offers to install it via winget i
 | `run.bat` | Start GlassGem |
 | `run.bat clean` | Delete `node_modules`, reinstall, then start |
 | `run.bat mock` | Also start the mock Web2API server (sample answers only) |
-| `build.bat` | Type-check + production build into `dist/` |
+| `build.bat` | Type-check + production web build into `dist/` |
 | `build.bat preview` | Build, then serve it on <http://localhost:4173> |
 | `build.bat clean` | Reinstall dependencies before building |
+| `build.bat desktop` | Build the native Windows installer and portable app |
 
 Every script stops with a plain-language explanation and suggested fix when something goes wrong (missing/old Node.js, failed `npm install`, type errors, port conflicts…). Add `/?` to see the options.
 
@@ -97,6 +98,36 @@ npm run dev
 Then open <http://localhost:5173>.
 
 On first launch you'll see **Connect to Gemini Web2API**. Click **Test Connection** → you should see **● Connected** → click **Start Chatting**.
+
+### Native Windows desktop app
+
+GlassGem can also run as a real Windows desktop app, packaged with Electron. The installed app has a native Windows window, application menu, isolated renderer, stable local storage, and an embedded loopback proxy. It does **not** require Node.js or a browser after installation. The Gemini Web2API server remains a separate local process.
+
+From a Windows PowerShell or Command Prompt in the project folder:
+
+```bat
+npm install
+npm run desktop:dev
+```
+
+`desktop:dev` starts Vite and Electron together with hot reload. To create distributable Windows artifacts:
+
+```bat
+desktop.bat build
+```
+
+The output is written to `release/` and includes an NSIS installer for x64 and arm64 Windows plus a portable x64 executable. Other useful commands are:
+
+| Command | Purpose |
+| --- | --- |
+| `desktop.bat dev` | Run the native shell against the Vite development server |
+| `desktop.bat build` | Build the web bundle and Windows installer artifacts |
+| `desktop.bat portable` | Build only the portable x64 executable |
+| `desktop.bat pack` | Build an unpacked Windows app directory for testing |
+| `npm run desktop:build` | Equivalent scripted Windows build |
+| `npm run desktop:build:portable` | Equivalent portable build |
+
+The desktop shell serves the production bundle on a fixed loopback origin (`127.0.0.1:17384`) so conversations, prompts, settings, and the IndexedDB database persist across restarts. If that port is occupied, close the other GlassGem instance or set `GLASSGEM_DESKTOP_PORT` before launching. Its proxy applies the same local/private-network restriction as the Vite proxy; public Internet targets are rejected.
 
 ## 5. API configuration
 
@@ -210,10 +241,17 @@ src/
     exportImport.ts   serializers + strict import validation
   stores/         zustand stores: conversations, settings, connection, prompts, ui, streaming
   types/          shared TypeScript types
+electron/
+  main.cjs        native Windows window, menu, static server, and local API proxy
+  preload.cjs     minimal isolated renderer bridge
 scripts/
   web2api-proxy.ts  local CORS proxy (Vite plugin)
+  desktop-dev.mjs   cross-platform Vite + Electron development launcher
   mock-web2api.mjs  mock server for UI development
-  check-env.bat     shared Windows environment/dependency check used by run.bat and build.bat
+  check-env.bat     shared Windows environment/dependency check used by the launchers
+build/
+  icon.ico        Windows installer and executable icon
+desktop.bat       Windows desktop dev/build/portable commands
 ```
 
 Useful commands:
@@ -223,8 +261,11 @@ Useful commands:
 | `npm run dev` | Dev server with HMR on <http://localhost:5173> |
 | `npm run typecheck` | Strict TypeScript check |
 | `npm run mock` | Mock Web2API on port 8081 |
-| `npm run build` | Production build into `dist/` |
+| `npm run build` | Production web build into `dist/` |
 | `npm run preview` | Serve `dist/` on <http://localhost:4173> (proxy included) |
+| `npm run desktop:dev` | Run the native Electron shell with Vite HMR |
+| `npm run desktop:build` | Build Windows NSIS + portable artifacts via electron-builder |
+| `npm run desktop:pack` | Build an unpacked Windows app directory |
 
 Stack: React 19 · TypeScript · Vite 7 · Tailwind CSS 4 · Radix UI primitives · Zustand · Dexie · react-markdown + remark-gfm + highlight.js · Motion · Sonner · Lucide.
 
@@ -238,6 +279,10 @@ npm run preview
 ```
 
 or double-click **`build.bat`** (add `preview` to serve it right away). The preview server includes the same local proxy, so the API configuration is unchanged. The build is a PWA — in Edge/Chrome use *Install GlassGem* (an install banner is shown when available). The app shell works offline; requests still need the local Web2API server.
+
+For the native Windows build, use **`desktop.bat build`**. It runs the web build first, then electron-builder packages `dist/` and the isolated Electron shell into `release/`. The default build produces signed-ready (not code-signed) NSIS installers for x64 and arm64 plus a portable x64 executable. Code signing can be added in a Windows CI environment by configuring electron-builder's standard certificate variables; unsigned artifacts will show the normal Windows SmartScreen warning until signed.
+
+A repeatable GitHub Actions workflow is included at `.github/workflows/windows-desktop.yml`. It can be started manually or runs for version tags, and uploads every file in `release/` as a build artifact.
 
 ## 14. Features
 
@@ -261,6 +306,7 @@ or double-click **`build.bat`** (add `preview` to serve it right away). The prev
 - Responsive: full sidebar on desktop, collapsible on tablet, slide-over drawer on mobile
 - Accessible: semantic roles, ARIA labels, focus rings, keyboard navigation everywhere
 - Installable **PWA**
+- Native Windows desktop app with an embedded local/private-network proxy
 - Debug panel with request traces
 
 ## 15. Keyboard shortcuts
