@@ -4,7 +4,7 @@ rem  GlassGem - shared environment check
 rem  Called by run.bat and build.bat. Makes sure that:
 rem    1. we are inside the GlassGem project folder
 rem    2. Node.js (>= 20) and npm are installed and on PATH
-rem    3. node_modules is present and matches package-lock.json
+rem    3. node_modules is present, complete (including Electron), and matches package-lock.json
 rem  Exit codes:  0 = ready   1 = error (already printed)
 rem               2 = Node.js was just installed, window must be reopened
 rem  Usage:  call scripts\check-env.bat [clean]
@@ -61,6 +61,8 @@ set "REASON="
 if defined FORCE_REINSTALL         (set "NEED_INSTALL=1" & set "REASON=clean install requested")
 if not exist "node_modules\"       (set "NEED_INSTALL=1" & set "REASON=node_modules is missing - first run")
 if not exist "node_modules\.bin\vite.cmd" (set "NEED_INSTALL=1" & if not defined REASON set "REASON=node_modules is incomplete")
+if not exist "node_modules\.bin\electron-builder.cmd" (set "NEED_INSTALL=1" & if not defined REASON set "REASON=desktop build tools are missing")
+if not exist "node_modules\electron\dist\electron.exe" (set "NEED_INSTALL=1" & if not defined REASON set "REASON=Electron runtime is missing")
 
 rem Fingerprint package-lock.json so we reinstall automatically after an update.
 set "LOCK_HASH="
@@ -106,6 +108,15 @@ if errorlevel 1 (
 if errorlevel 1 goto :install_failed
 if not exist "node_modules\.bin\vite.cmd" (
   echo [ERROR] npm install finished but node_modules looks incomplete.
+  goto :install_failed
+)
+if not exist "node_modules\.bin\electron-builder.cmd" (
+  echo [ERROR] npm install finished but electron-builder is missing.
+  goto :install_failed
+)
+if not exist "node_modules\electron\dist\electron.exe" (
+  echo [ERROR] npm install finished but the Electron runtime is missing.
+  echo         Run the install again with a working connection to GitHub releases.
   goto :install_failed
 )
 if defined LOCK_HASH (>"!MARKER!" echo !LOCK_HASH!)
