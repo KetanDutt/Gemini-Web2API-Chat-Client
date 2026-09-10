@@ -128,9 +128,15 @@ first. `desktop.bat dev|build|portable|pack|clean` wraps the same commands.
 ## Troubleshooting the toolchain
 
 - **`npm install` stalls on Electron** — the Electron binary comes from GitHub
-  releases, not the npm registry. Behind a restrictive firewall set
-  `ELECTRON_MIRROR` (see `run.bat` error output) or a proxy via
-  `npm config set https-proxy …`.
+  releases, not the npm registry. `run-desktop.bat` retries via npm's
+  installer and then a direct zip download verified against the SHA-256
+  bundled in the electron npm package. Behind a restrictive firewall set
+  `ELECTRON_MIRROR=https://registry.npmmirror.com/-/binary/electron/`, or a
+  proxy via `set HTTPS_PROXY=http://proxy:port` in the same window — the
+  Electron downloader (`@electron/get`) only honors proxies when
+  `ELECTRON_GET_USE_PROXY=1` is set, which the launcher maps across from
+  `HTTPS_PROXY` or npm's `https-proxy` config automatically (npm's
+  `https-proxy` alone does not affect the Electron download).
 - **Port already in use** — Vite picks the next free port; the Electron
   loopback server fails fast with a hint (change `GLASSGEM_DESKTOP_PORT`).
 - **Stale caches** — delete `node_modules/.vite` (dev transform cache) or run
