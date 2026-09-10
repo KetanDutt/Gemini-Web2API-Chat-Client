@@ -3,23 +3,56 @@
  * Starts Vite and Electron together for desktop development without adding a
  * platform-specific process manager dependency. It works from PowerShell,
  * Command Prompt, macOS, and Linux.
+ *
+ * Vite is started directly through node.exe (node_modules/vite/bin/vite.js)
+ * instead of `npm run dev`. Since Node's April 2024 security fix
+ * (CVE-2024-27980, shipped in 18.20.2 / 20.12.2 / 21.7.3 and later),
+ * Windows refuses to spawn .cmd shims such as npm.cmd with shell:false and
+ * throws "spawn EINVAL". Spawning Vite directly sidesteps that entirely and,
+ * as a bonus, makes Vite a first-class child process: killing it here cannot
+ * leave an orphaned dev server behind (killing npm only kills its shim).
  */
+import { existsSync, realpathSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { spawn } from 'node:child_process'
+import path from 'node:path'
 import process from 'node:process'
+import { fileURLToPath } from 'node:url'
 
 const require = createRequire(import.meta.url)
-const electronPath = require('electron')
-const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm'
 const viteUrl = 'http://127.0.0.1:5173'
-const env = { ...process.env, GLASSGEM_DEV_SERVER_URL: viteUrl }
 
 let viteProcess
 let electronProcess
 let shuttingDown = false
 
+export function projectRoot() {
+  return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+}
+
+/**
+ * The command used to start the Vite dev server. Always node itself plus the
+ * vite.js entrypoint - never npm / npm.cmd - so Windows never sees a batch
+ * file in spawn().
+ */
+export function viteLaunchSpec(root = projectRoot()) {
+  const viteBin = path.join(root, 'node_modules', 'vite', 'bin', 'vite.js')
+  return {
+    command: process.execPath,
+    args: [viteBin, '--host', '127.0.0.1', '--strictPort'],
+    viteBin,
+  }
+}
+
 async function start() {
-  viteProcess = spawn(npmCommand, ['run', 'dev', '--', '--host', '127.0.0.1', '--strictPort'], {
+  const { command, args, viteBin } = viteLaunchSpec()
+  if (!existsSync(viteBin)) {
+    throw new Error(
+      `Vite was not found at ${viteBin}. Reinstall the dependencies first:  run-desktop.bat clean`,
+    )
+  }
+
+  viteProcess = spawn(command, args, {
     stdio: 'inherit',
     env: process.env,
     shell: false,
@@ -39,6 +72,11 @@ async function start() {
 
   await waitForVite()
   if (shuttingDown) return
+
+  // Resolved lazily so importing this module (tests) does not require the
+  // Electron runtime to be present.
+  const electronPath = require('electron')
+  const env = { ...process.env, GLASSGEM_DEV_SERVER_URL: viteUrl }
 
   electronProcess = spawn(electronPath, ['.'], {
     stdio: 'inherit',
@@ -81,10 +119,25 @@ function shutdown(code = 0) {
   process.exitCode = code
 }
 
-process.on('SIGINT', () => shutdown(0))
-process.on('SIGTERM', () => shutdown(0))
+function isEntryPoint() {
+  const entry = process.argv[1]
+  if (!entry) return false
+  try {
+    const invoked = realpathSync(entry)
+    const self = realpathSync(fileURLToPath(import.meta.url))
+    // Windows paths differ in casing between process.argv and import.meta.url.
+    return process.platform === 'win32' ? invoked.toLowerCase() === self.toLowerCase() : invoked === self
+  } catch {
+    return false
+  }
+}
 
-start().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error))
-  shutdown(1)
-})
+if (isEntryPoint()) {
+  process.on('SIGINT', () => shutdown(0))
+  process.on('SIGTERM', () => shutdown(0))
+
+  start().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error))
+    shutdown(1)
+  })
+}
