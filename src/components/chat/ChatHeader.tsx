@@ -1,12 +1,12 @@
-import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, CopyPlus, Download, Eraser, FileJson, FileText, FileType, MoreHorizontal, Pencil, ScrollText, Star, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { Archive, ChevronRight, ClipboardCopy, CopyPlus, Download, Eraser, FileJson, FileText, FileType, MoreHorizontal, Pencil, ScrollText, Star, Trash2 } from 'lucide-react'
 import { useConversations } from '@/stores/conversationStore'
 import { useUI } from '@/stores/uiStore'
 import { ModelSelector } from './ModelSelector'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from '@/components/ui/Menu'
 import { ConfirmDialog, GlassDialog } from '@/components/ui/Dialog'
-import { cn, downloadFile } from '@/lib/utils'
-import { exportFilename, serializeConversation } from '@/services/exportImport'
+import { cn, copyToClipboard, downloadFile } from '@/lib/utils'
+import { conversationToMarkdown, exportFilename, serializeConversation } from '@/services/exportImport'
 import { toast } from '@/hooks/useToast'
 import type { ExportFormat } from '@/types'
 import { useSettings } from '@/stores/settingsStore'
@@ -16,6 +16,7 @@ export function ChatHeader({ scrolled = false }: { scrolled?: boolean }) {
   const conv = useConversations((s) => s.conversations.find((c) => c.id === s.activeId))
   const setConversationModel = useConversations((s) => s.setConversationModel)
   const toggleFavorite = useConversations((s) => s.toggleFavorite)
+  const toggleArchived = useConversations((s) => s.toggleArchived)
   const clearConversation = useConversations((s) => s.clearConversation)
   const duplicateConversation = useConversations((s) => s.duplicateConversation)
   const getConversationMessages = useConversations((s) => s.getConversationMessages)
@@ -30,7 +31,6 @@ export function ChatHeader({ scrolled = false }: { scrolled?: boolean }) {
   const [sysDraft, setSysDraft] = useState('')
   const [renaming, setRenaming] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
-  const titleRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => setRenaming(false), [conv?.id])
 
@@ -73,7 +73,6 @@ export function ChatHeader({ scrolled = false }: { scrolled?: boolean }) {
             <span className="hidden text-fg-subtle sm:inline">/</span>
             {renaming ? (
               <input
-                ref={titleRef}
                 autoFocus
                 onFocus={(e) => e.currentTarget.select()}
                 value={titleDraft}
@@ -157,6 +156,25 @@ export function ChatHeader({ scrolled = false }: { scrolled?: boolean }) {
                 }}
               >
                 Duplicate
+              </MenuItem>
+              <MenuItem
+                icon={<ClipboardCopy size={14} />}
+                onSelect={async () => {
+                  const messages = await getConversationMessages(conv.id)
+                  if (await copyToClipboard(conversationToMarkdown(conv, messages))) toast.success('Conversation copied', 'Formatted as Markdown — paste anywhere.')
+                  else toast.error('Could not copy to clipboard')
+                }}
+              >
+                Copy as Markdown
+              </MenuItem>
+              <MenuItem
+                icon={<Archive size={14} />}
+                onSelect={async () => {
+                  await toggleArchived(conv.id)
+                  toast.success('Conversation archived', 'Restore it anytime from the Archived view in the sidebar.')
+                }}
+              >
+                Archive
               </MenuItem>
               <MenuSeparator />
               <MenuItem icon={<Eraser size={14} />} onSelect={() => setConfirmClear(true)}>

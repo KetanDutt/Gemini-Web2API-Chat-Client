@@ -85,6 +85,11 @@ src/
 - **`conversationStore`** owns conversations, the active conversation's
   messages, and the whole send/regenerate/edit lifecycle. Every mutation is
   persisted to IndexedDB (Dexie) immediately, then mirrored into the store.
+  The initial load of a conversation's messages is tracked as an in-flight
+  promise: anything that needs a consistent view of the conversation (send,
+  regenerate, edit & resend) awaits it first, so a quickly-typed message can
+  never race the load and end up with a wrong `order` or a truncated request
+  history. Deleting or clearing a conversation also drops its composer draft.
 - **`streamingStore`** is a deliberate micro-optimisation: streamed tokens are
   written into a `Map` outside React state. Only the single message component
   subscribing via `useStreamingText()` re-renders per frame — the message list
@@ -95,7 +100,11 @@ src/
   polls run with `{ silent: true }` so they never flicker the status pill
   into *checking* — only user-initiated tests do.
 - **`settingsStore`** / **`uiStore`** / **`promptStore`** are straightforward;
-  settings persist to `localStorage` via zustand `persist`.
+  settings persist to `localStorage` via zustand `persist`. The
+  **request timeout** (Settings → API, 1–10 minutes) is clamped in
+  `requestTimeoutMs()` and threaded into the API client via
+  `selectApiConfig`; it bounds non-streaming requests and the connection test
+  only — streaming responses never time out.
 - **Composer drafts** live in `services/drafts.ts`: text per conversation is
   debounce-persisted to `localStorage` (capped, reload-safe), attachments stay
   in a runtime map (too big for storage quotas).
@@ -144,6 +153,9 @@ diagnostics instead of a white page.
 
 - **IndexedDB** (database `glassgem`, via Dexie): conversations, messages,
   prompts. Message ordering uses a `[conversationId+order]` compound index.
+  Conversations carry lifecycle flags (`favorite`, `pinned`, `archived`);
+  archived chats leave the main sidebar list but remain fully searchable and
+  restorable from the dedicated *Archived* view.
 - **localStorage**: settings, sidebar state, onboarding flag, detected
   capabilities, composer drafts (versioned zustand persist keys, all prefixed
   `glassgem.`).

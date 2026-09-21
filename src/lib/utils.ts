@@ -63,7 +63,7 @@ export function startOfDay(ts: number): number {
   return d.getTime()
 }
 
-export type DateGroup = 'Pinned' | 'Today' | 'Yesterday' | 'Previous 7 Days' | 'Older'
+export type DateGroup = 'Pinned' | 'Today' | 'Yesterday' | 'Previous 7 Days' | 'Older' | 'Archived'
 
 export function dateGroup(ts: number, now = Date.now()): DateGroup {
   const today = startOfDay(now)
@@ -177,6 +177,13 @@ export function downloadFile(filename: string, content: string, mime = 'text/pla
 
 export function safeFilename(name: string): string {
   return name.replace(/[<>:"/\\|?*\u0000-\u001F]/g, '').replace(/\s+/g, ' ').trim().slice(0, 80) || 'conversation'
+}
+
+/** Filesystem-safe, sortable timestamp (2026-09-21-1435) for export filenames. */
+export function timestampSlug(ts: number): string {
+  const d = new Date(ts)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}-${pad(d.getHours())}${pad(d.getMinutes())}`
 }
 
 export function modelLabel(id: string): string {

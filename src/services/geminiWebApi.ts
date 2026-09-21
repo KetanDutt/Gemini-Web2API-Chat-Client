@@ -458,5 +458,8 @@ export const DEFAULT_API_CONFIG: ApiConfig = {
   timeoutMs: 120000,
 }
 
+/** The model preselected for new conversations and imports (matches the bundled server's default list). */
+export const DEFAULT_MODEL = 'gemini-3.6-flash'
+
 /** Singleton client used by the stores. */
 export const geminiWebApi = new GeminiWebApi(DEFAULT_API_CONFIG)

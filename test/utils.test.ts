@@ -9,6 +9,7 @@ import {
   pluralize,
   previewFromContent,
   safeFilename,
+  timestampSlug,
   titleFromMessage,
 } from '@/lib/utils'
 
@@ -89,4 +90,10 @@ test('formatBytes: human readable sizes', () => {
 test('pluralize', () => {
   assert.equal(pluralize(1, 'model'), '1 model')
   assert.equal(pluralize(3, 'model'), '3 models')
+})
+
+test('timestampSlug: filesystem-safe, zero-padded, local time', () => {
+  const ts = new Date(2026, 8, 21, 9, 5).getTime() // Sep 21 2026, 09:05 local
+  assert.equal(timestampSlug(ts), '2026-09-21-0905')
+  assert.ok(!/[^\d-]/.test(timestampSlug(Date.now())))
 })

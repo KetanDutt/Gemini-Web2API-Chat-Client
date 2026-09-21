@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { persist, createJSONStorage } from 'zustand/middleware'
 import type { ChatParams, Density, ThemeMode } from '@/types'
-import { DEFAULT_API_CONFIG } from '@/services/geminiWebApi'
+import { DEFAULT_API_CONFIG, DEFAULT_MODEL } from '@/services/geminiWebApi'
 
 export interface SettingsState {
   // API
@@ -10,6 +10,8 @@ export interface SettingsState {
   defaultModel: string
   useProxy: boolean
   customModels: string[]
+  /** Non-streaming request timeout in seconds (30–600, clamped). */
+  requestTimeoutSec: number
   // General
   theme: ThemeMode
   density: Density
@@ -40,9 +42,10 @@ export interface SettingsState {
 const DEFAULTS: Omit<SettingsState, 'set' | 'update' | 'clearCredentials' | 'reset'> = {
   baseUrl: DEFAULT_API_CONFIG.baseUrl,
   apiKey: DEFAULT_API_CONFIG.apiKey,
-  defaultModel: 'gemini-3.6-flash',
+  defaultModel: DEFAULT_MODEL,
   useProxy: true,
   customModels: [],
+  requestTimeoutSec: 120,
   theme: 'system',
   density: 'comfortable',
   reduceMotion: false,
@@ -86,9 +89,26 @@ export const useSettings = create<SettingsState>()(
   ),
 )
 
-export const selectApiConfig = (s: SettingsState) => ({
-  baseUrl: s.baseUrl,
-  apiKey: s.apiKey,
-  useProxy: s.useProxy,
-  timeoutMs: DEFAULT_API_CONFIG.timeoutMs,
-})
+export const MIN_REQUEST_TIMEOUT_SEC = 30
+export const MAX_REQUEST_TIMEOUT_SEC = 600
+export const DEFAULT_REQUEST_TIMEOUT_SEC = 120
+
+/**
+ * Clamps a user-provided timeout (seconds) into the allowed range. Streaming
+ * responses never use this value — it only bounds non-streaming requests and
+ * the connection test, so slow models can be given up to 10 minutes.
+ */
+export function requestTimeoutMs(sec: unknown): number {
+  const n = typeof sec === 'number' && Number.isFinite(sec) ? sec : DEFAULT_REQUEST_TIMEOUT_SEC
+  const clamped = Math.min(MAX_REQUEST_TIMEOUT_SEC, Math.max(MIN_REQUEST_TIMEOUT_SEC, Math.round(n)))
+  return clamped * 1000
+}
+
+export function selectApiConfig(s: Pick<SettingsState, 'baseUrl' | 'apiKey' | 'useProxy' | 'requestTimeoutSec'>) {
+  return {
+    baseUrl: s.baseUrl,
+    apiKey: s.apiKey,
+    useProxy: s.useProxy,
+    timeoutMs: requestTimeoutMs(s.requestTimeoutSec),
+  }
+}

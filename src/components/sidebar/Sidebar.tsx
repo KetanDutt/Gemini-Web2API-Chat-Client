@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
-import { BookMarked, MessageSquareDashed, Plus, Search, SearchX, Star, X } from 'lucide-react'
+import { Archive, BookMarked, MessageSquareDashed, Plus, Search, SearchX, Star, X } from 'lucide-react'
 import { useConversations } from '@/stores/conversationStore'
 import { useUI } from '@/stores/uiStore'
 import { ConversationItem } from './ConversationItem'
@@ -24,6 +24,7 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
   const renameConversation = useConversations((s) => s.renameConversation)
   const toggleFavorite = useConversations((s) => s.toggleFavorite)
   const togglePinned = useConversations((s) => s.togglePinned)
+  const toggleArchived = useConversations((s) => s.toggleArchived)
   const duplicateConversation = useConversations((s) => s.duplicateConversation)
   const getConversationMessages = useConversations((s) => s.getConversationMessages)
   const requestDelete = useUI((s) => s.requestDelete)
@@ -34,19 +35,29 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
 
   const [query, setQuery] = useState('')
   const [favoritesOnly, setFavoritesOnly] = useState(false)
+  const [archivedOnly, setArchivedOnly] = useState(false)
   const { results, query: activeQuery } = useConversationSearch(query)
 
   const grouped = useMemo(() => {
-    const list = favoritesOnly ? conversations.filter((c) => c.favorite) : conversations
     const groups = new Map<DateGroup, Conversation[]>()
-    for (const c of list) {
-      if (c.archived) continue
-      const g: DateGroup = c.pinned ? 'Pinned' : dateGroup(c.updatedAt)
-      if (!groups.has(g)) groups.set(g, [])
-      groups.get(g)!.push(c)
+    if (archivedOnly) {
+      for (const c of conversations) {
+        if (!c.archived) continue
+        if (!groups.has('Archived')) groups.set('Archived', [])
+        groups.get('Archived')!.push(c)
+      }
+    } else {
+      const list = favoritesOnly ? conversations.filter((c) => c.favorite) : conversations
+      for (const c of list) {
+        if (c.archived) continue
+        const g: DateGroup = c.pinned ? 'Pinned' : dateGroup(c.updatedAt)
+        if (!groups.has(g)) groups.set(g, [])
+        groups.get(g)!.push(c)
+      }
     }
-    return GROUP_ORDER.filter((g) => groups.has(g)).map((g) => ({ group: g, items: groups.get(g)! }))
-  }, [conversations, favoritesOnly])
+    const order: DateGroup[] = archivedOnly ? ['Archived'] : GROUP_ORDER
+    return order.filter((g) => groups.has(g)).map((g) => ({ group: g, items: groups.get(g)! }))
+  }, [conversations, favoritesOnly, archivedOnly])
 
   const handleSelect = useCallback(
     (id: string) => {
@@ -74,6 +85,15 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
       if (copy) toast.success('Conversation duplicated', copy.title)
     },
     [duplicateConversation],
+  )
+
+  const handleArchive = useCallback(
+    async (id: string) => {
+      const conv = useConversations.getState().conversations.find((c) => c.id === id)
+      await toggleArchived(id)
+      toast.success(conv?.archived ? 'Conversation restored' : 'Conversation archived')
+    },
+    [toggleArchived],
   )
 
   const handleNew = async () => {
@@ -124,8 +144,25 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
         </div>
 
         <div className="mt-2 flex items-center gap-1.5">
-          <button className={cn('pill pill-interactive', favoritesOnly && 'pill-on')} onClick={() => setFavoritesOnly((v) => !v)} aria-pressed={favoritesOnly}>
-            <Star size={12} className={cn('star-toggle', favoritesOnly && 'is-on fill-warning text-warning')} /> Favorites
+          <button
+            className={cn('pill pill-interactive', favoritesOnly && !archivedOnly && 'pill-on')}
+            onClick={() => {
+              setFavoritesOnly((v) => !v)
+              setArchivedOnly(false)
+            }}
+            aria-pressed={favoritesOnly && !archivedOnly}
+          >
+            <Star size={12} className={cn('star-toggle', favoritesOnly && !archivedOnly && 'is-on fill-warning text-warning')} /> Favorites
+          </button>
+          <button
+            className={cn('pill pill-interactive', archivedOnly && 'pill-on')}
+            onClick={() => {
+              setArchivedOnly((v) => !v)
+              setFavoritesOnly(false)
+            }}
+            aria-pressed={archivedOnly}
+          >
+            <Archive size={12} /> Archived
           </button>
           <button className="pill pill-interactive" onClick={() => openDialog('prompts')}>
             <BookMarked size={12} /> Prompts
@@ -164,6 +201,7 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
                   onStartRename={setRenaming}
                   onFavorite={toggleFavorite}
                   onPin={togglePinned}
+                  onArchive={handleArchive}
                   onDelete={requestDelete}
                   onDuplicate={handleDuplicate}
                   onExport={handleExport}
@@ -172,7 +210,19 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
             </div>
           )
         ) : grouped.length === 0 ? (
-          favoritesOnly ? (
+          archivedOnly ? (
+            <EmptyState
+              compact
+              icon={<Archive size={18} />}
+              title="Nothing archived"
+              description="Archive chats you're done with — they stay searchable and can be restored anytime."
+              action={
+                <button className="btn btn-secondary btn-sm" onClick={() => setArchivedOnly(false)}>
+                  Show all
+                </button>
+              }
+            />
+          ) : favoritesOnly ? (
             <EmptyState
               compact
               icon={<Star size={18} />}
@@ -213,6 +263,7 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
                     onStartRename={setRenaming}
                     onFavorite={toggleFavorite}
                     onPin={togglePinned}
+                    onArchive={handleArchive}
                     onDelete={requestDelete}
                     onDuplicate={handleDuplicate}
                     onExport={handleExport}

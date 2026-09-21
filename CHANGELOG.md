@@ -4,6 +4,53 @@ All notable changes to GlassGem are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0]
+
+### Added
+
+- **Archive conversations** — the `archived` flag finally has a UI: archive
+  from the sidebar or chat-header ⋯ menu, restore anytime from the sidebar's
+  new **Archived** filter. Archived chats leave the main list but stay fully
+  searchable; archiving the open chat closes it, and duplicates are always
+  created unarchived.
+- **Configurable request timeout** (Settings → API, 1–10 minutes) for slow
+  non-streaming generations. Streaming responses never time out; the value
+  is clamped (30–600 s) and covered by unit tests.
+- **Copy conversation as Markdown** — chat header ⋯ menu now offers a
+  clipboard copy of the whole conversation, formatted exactly like the
+  Markdown export.
+- New documentation: [docs/FEATURES.md](./docs/FEATURES.md) (user-facing
+  feature guide), [docs/TESTING.md](./docs/TESTING.md) (test suites + a
+  manual pre-release checklist),
+  [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) (expanded, step-by-step
+  problem solving) and [docs/ROADMAP.md](./docs/ROADMAP.md) (candidate future
+  work). README and ARCHITECTURE updated to match.
+
+### Fixed
+
+- **Send-race on conversation switch**: sending a message while the target
+  conversation's messages were still loading computed the new message's
+  `order` from a stale list and could send a truncated history to the API.
+  The in-flight load is now awaited before any send/regenerate/edit, and the
+  store falls back to the database whenever its view isn't settled.
+- **User-message actions were invisible on touch devices** — the hover-only
+  opacity now also lifts below the `sm` breakpoint (matching assistant
+  messages).
+- **Orphaned composer drafts**: deleting or clearing a conversation (or
+  deleting all conversations) now removes its persisted draft instead of
+  waiting for the 200-entry cap to evict it.
+- Exported single messages get a clean, sortable filename
+  (`gemini-2026-09-21-1435.md`) instead of a locale time string with a
+  stripped colon.
+
+### Changed
+
+- The default model ID (`gemini-3.6-flash`) is now a single exported
+  `DEFAULT_MODEL` constant used by the settings store, the import validator
+  and the API form, instead of being hardcoded in three places.
+- The visible message list is memoised (no per-render filtering) and the
+  chat-header rename input lost an unused ref.
+
 ## [1.1.0]
 
 ### Added

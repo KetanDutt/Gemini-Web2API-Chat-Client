@@ -206,6 +206,7 @@ Open **Settings → API** (gear icon, or `Ctrl+Shift+S`).
 | **API Key** | Sent as `Authorization: Bearer <key>`. Default `sk-gemini`. |
 | **Default model** | Used for new conversations. Pick from the discovered list or type any model ID. |
 | **Use local proxy** | On by default. Routes requests through the GlassGem dev server to avoid CORS problems (see §7). |
+| **Request timeout** | How long non-streaming requests may run (1–10 min, default 2 min). Streaming responses never time out — slow models may need 5–10 min. |
 | **Test Connection** | Calls `GET /v1/models` (falls back to a tiny chat completion if the server has no `/models`). Shows **● Connected** with latency, or **● Connection failed** with a plain-language explanation. |
 
 The connection status pill in the top bar is always visible. Click it for the API URL, current model, last successful request and latency. GlassGem re-tests automatically on startup, whenever the API settings change, and every 20 s while offline.
@@ -219,6 +220,10 @@ GlassGem never assumes an OpenAI feature exists. **Settings → API → Detected
 Each starts as *Unknown*, becomes *Supported* after a successful observed request, or *Unsupported* after the server rejects it — at which point the corresponding UI is disabled or the feature is silently omitted from requests.
 
 ## 6. Troubleshooting
+
+The table below covers the common cases; the expanded, step-by-step guide
+(including a 60-second health check and a pre-release test checklist) lives
+in [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md).
 
 | Symptom | What it means | Fix |
 | --- | --- | --- |
@@ -291,10 +296,11 @@ Nothing is uploaded anywhere. Clearing site data in the browser erases it — ex
 
 ## 12. Development
 
-Deeper documentation lives in [`docs/`](./docs): [architecture](./docs/ARCHITECTURE.md) · [development guide](./docs/DEVELOPMENT.md) · [backend integration](./docs/BACKEND.md) · [security & privacy](./docs/SECURITY.md).
+Deeper documentation lives in [`docs/`](./docs): [architecture](./docs/ARCHITECTURE.md) · [development guide](./docs/DEVELOPMENT.md) · [backend integration](./docs/BACKEND.md) · [security & privacy](./docs/SECURITY.md) · [feature guide](./docs/FEATURES.md) · [testing guide](./docs/TESTING.md) · [troubleshooting](./docs/TROUBLESHOOTING.md) · [roadmap](./docs/ROADMAP.md).
 
 ```
-docs/             architecture, development guide, backend notes, security notes
+docs/             architecture, development, backend, security, features,
+                  testing, troubleshooting and roadmap guides
 gemini-web2api-ikhsan3adi/
                   vendored Go backend (OpenAI-compatible Web2API server,
                   started automatically by the launchers)
@@ -305,7 +311,7 @@ src/
     dialogs/        settings, search (Ctrl+K), shortcuts, prompt library, onboarding, debug, delete confirm,
                     DialogHost (lazy-loads each dialog on first open)
     layout/         top bar, logo, connection status, PWA prompt
-    sidebar/        conversation list + items
+    sidebar/        conversation list + items (groups, favorites, archived view)
     ui/             glass primitives (dialog, menu, switch, segmented, tooltip, fields, empty state…)
     ErrorBoundary.tsx  crash recovery screen with copyable diagnostics
   hooks/          theme, media queries, shortcuts, connection monitor, search, toast
@@ -380,9 +386,9 @@ A repeatable GitHub Actions workflow is included at `.github/workflows/windows-d
 
 - Gemini chat with **streaming** (automatic fallback to non-streaming if the server rejects `stream: true`)
 - **Bundled Web2API backend** — the server sources ship in the repo and are built/downloaded and started automatically; works offline once set up
-- Multiple conversations, grouped Today / Yesterday / Previous 7 days / Older, with **pin**, **favorite** and **duplicate**
+- Multiple conversations, grouped Today / Yesterday / Previous 7 days / Older, with **pin**, **favorite**, **duplicate** and **archive** (archived chats stay searchable and can be restored from the sidebar's Archived view)
 - Instant local **search** across titles and message content, with highlighted matches (`Ctrl+K`)
-- Rename (double-click or menu), delete (confirmed), clear, export per conversation
+- Rename (double-click or menu), delete (confirmed), clear, export per conversation, copy a whole conversation as Markdown
 - Automatic local title from the first message (no extra API call)
 - Full **Markdown** rendering: headings, lists, tables, blockquotes, links, task lists, images
 - **Code blocks** with language label, syntax highlighting and Copy / *Copied ✓*
@@ -395,6 +401,7 @@ A repeatable GitHub Actions workflow is included at `.github/workflows/windows-d
 - **Crash-proof composer** — per-conversation drafts survive reloads (text persisted locally, attachments kept in memory)
 - Per-conversation **system instructions** and optional default system prompt
 - Optional `temperature` / `top_p` / `max_tokens` — off by default, auto-disabled if the server rejects them
+- **Configurable request timeout** (1–10 min) for slow, non-streaming generations — streams never time out
 - **Prompt library** with categories, favorites, create/edit/delete, one-click insert
 - **Settings**: General (theme, density, reduced motion, debug panel) · API · Chat · Prompts · Privacy · Data · About
 - System / Light / Dark themes, each designed on its own terms; `prefers-reduced-motion` respected

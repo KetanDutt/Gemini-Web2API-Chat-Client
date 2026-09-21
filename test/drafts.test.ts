@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { deleteDraft, getAttachmentDraft, getDraft, setAttachmentDraft, setDraft } from '@/services/drafts'
+import { clearDrafts, deleteDraft, getAttachmentDraft, getDraft, setAttachmentDraft, setDraft } from '@/services/drafts'
 
 test('drafts: set, get, delete round-trip', () => {
   const id = `test-${Date.now()}-a`
@@ -47,4 +47,17 @@ test('drafts: attachment drafts are runtime-only and isolated', () => {
 
   setAttachmentDraft(a, [])
   assert.deepEqual(getAttachmentDraft(a), [])
+})
+
+test('drafts: clearDrafts removes every entry at once', () => {
+  const a = `test-${Date.now()}-e1`
+  const b = `test-${Date.now()}-e2`
+  setDraft(a, 'one')
+  setDraft(b, 'two')
+  assert.equal(getDraft(a), 'one')
+  assert.equal(getDraft(b), 'two')
+
+  clearDrafts()
+  assert.equal(getDraft(a), '')
+  assert.equal(getDraft(b), '')
 })
