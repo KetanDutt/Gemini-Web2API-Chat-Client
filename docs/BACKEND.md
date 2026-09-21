@@ -32,11 +32,24 @@ scripts/ensure-web2api.mjs
                                                prebuilt download
   7. write default config.json if missing    → API key sk-gemini
   8. start detached daemon, wait for /v1/models
+     (desktop sessions: session-scoped daemon, stopped with the session)
   9. everything failed?                      → clearly labelled MOCK
 ```
 
 - The daemon survives GlassGem restarts by design; stop it with
   `npm run web2api:stop` (or `run.bat stop` / `./run.sh stop`).
+- **Desktop sessions are the exception:** `run-desktop.bat`, `desktop.bat dev`
+  and `npm run desktop:dev` start the daemon *session-scoped* — attached to
+  the same terminal/console as the app. Closing the Electron window stops it
+  automatically (via `scripts/desktop-dev.mjs`), and Ctrl+C or closing the
+  terminal stops it with the session (the OS delivers the console/terminal
+  event to every attached process, on Windows and Unix alike). A server that
+  was already running beforehand (`npm run web2api`, a system service) is
+  detected via the pid file and left untouched.
+- While a daemon recorded in `.web2api.pid` is still alive but not answering
+  (slow boot), a second ensure call **waits for it instead of spawning a
+  duplicate** — the pid file always points at the real server, so it stays
+  stoppable.
 - Server output goes to `.web2api.log`, the pid to `.web2api.pid` (both
   project root, gitignored).
 - Set `GLASSGEM_SKIP_AUTO_WEB2API=1` to manage the server yourself (Docker,

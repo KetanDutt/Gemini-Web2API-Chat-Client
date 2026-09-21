@@ -95,8 +95,9 @@ echo     portable  create only the portable x64 executable
 echo     pack      create an unpacked Windows app directory for testing
 echo     clean     reinstall npm dependencies before building the installer
 echo.
-echo   The Web2API server remains a separate local application. GlassGem's
-echo   embedded desktop proxy keeps the same API settings and avoids CORS.
+echo   In dev mode the Web2API server is started with the session and stopped
+echo   again when the app closes. GlassGem's embedded desktop proxy keeps the
+echo   same API settings and avoids CORS.
 echo.
 pause
 exit /b 0

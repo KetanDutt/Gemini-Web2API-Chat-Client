@@ -2,7 +2,7 @@ import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
 import { AlertTriangle, Check, ChevronLeft, ChevronRight, Copy, Download, FileText, MoreHorizontal, Paperclip, Pencil, RefreshCw, Settings2, Sparkles, Trash2, Bug } from 'lucide-react'
 import type { Message } from '@/types'
-import { cn, copyToClipboard, downloadFile, formatLatency, formatTime, modelLabel, safeFilename } from '@/lib/utils'
+import { cn, copyToClipboard, downloadFile, formatLatency, formatTime, modelLabel, timestampSlug } from '@/lib/utils'
 import { parseElicitations } from '@/lib/elicitations'
 import { Markdown } from './Markdown'
 import { GemMark } from '@/components/layout/Logo'
@@ -160,7 +160,7 @@ function UserMessage({ message, showTimestamps, generating }: Props) {
         </div>
       )}
       {!editing && (
-        <div className="mt-1 flex h-7 items-center gap-0.5 opacity-0 transition-opacity duration-(--duration-fast) group-hover:opacity-100 focus-within:opacity-100 sm:pr-1">
+        <div className="mt-1 flex h-7 items-center gap-0.5 opacity-0 transition-opacity duration-(--duration-fast) group-hover:opacity-100 focus-within:opacity-100 max-sm:opacity-100 sm:pr-1">
           {showTimestamps && <span className="mr-1 text-[11px] text-fg-subtle">{formatTime(message.createdAt)}{message.updatedAt && message.updatedAt !== message.createdAt ? ' · edited' : ''}</span>}
           <Tooltip content="Edit & resend">
             <button className="icon-btn icon-btn-sm" onClick={() => setEditing(message.id)} disabled={generating} aria-label="Edit message">
@@ -207,7 +207,7 @@ function AssistantMessage({ message, showTimestamps, showUsage, showLatency, gen
   const vIndex = message.activeVersion ?? 0
 
   const exportMessage = () => {
-    downloadFile(`${safeFilename(`gemini-${formatTime(message.createdAt)}`)}.md`, display, 'text/markdown')
+    downloadFile(`gemini-${timestampSlug(message.createdAt)}.md`, display, 'text/markdown')
     toast.success('Export complete')
   }
 

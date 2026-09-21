@@ -63,7 +63,7 @@ Whenever you start GlassGem (via `./run.sh`, `run.bat`, `run-desktop.bat`, or `n
 3. Creates a default `config.json` (API key `sk-gemini`) inside the backend directory when none exists; your own config is never touched.
 4. Starts the server as a background daemon on port `8081` and waits until it answers. Its output goes to `.web2api.log`; only when no real server can be provided does GlassGem clearly warn and start the built-in mock instead (sample answers only, never real Gemini).
 
-The background server keeps running after GlassGem exits, and the next start reuses it. To stop it: `npm run web2api:stop` · `run.bat stop` · `run-desktop.bat stop` · `./run.sh stop`. Handy extras: `npm run web2api` (ensure + start the daemon by hand) and `npm run web2api:foreground` (blocking, for debugging). Set `GLASSGEM_SKIP_AUTO_WEB2API=1` to disable the auto-start entirely (for example when you run Web2API in Docker — see [docs/BACKEND.md](./docs/BACKEND.md#docker-alternative)), or point GlassGem at another machine by setting `GLASSGEM_WEB2API_URL` (its port is honored when GlassGem starts the server itself).
+In the **browser/PWA flow** (`run.bat`, `./run.sh`, `npm run dev`) the background server keeps running after GlassGem exits, and the next start reuses it. To stop it: `npm run web2api:stop` · `run.bat stop` · `run-desktop.bat stop` · `./run.sh stop`. The **desktop flow** (`run-desktop.bat`, `desktop.bat dev`, `npm run desktop:dev`) instead ties the server to the session: the daemon it starts is stopped automatically when you close the app window or its terminal — and a server that was already running beforehand (e.g. `npm run web2api` or a system service) is left untouched. Handy extras: `npm run web2api` (ensure + start the persistent daemon by hand) and `npm run web2api:foreground` (blocking, for debugging). Set `GLASSGEM_SKIP_AUTO_WEB2API=1` to disable the auto-start entirely (for example when you run Web2API in Docker — see [docs/BACKEND.md](./docs/BACKEND.md#docker-alternative)), or point GlassGem at another machine by setting `GLASSGEM_WEB2API_URL` (its port is honored when GlassGem starts the server itself).
 
 You can also start it manually or as a system service (systemd **and** OpenRC/Alpine) with `sudo sh setup-linux.sh`. When it is running you should be able to open this in a browser:
 
@@ -97,6 +97,7 @@ Double-click **`run.bat`**. It checks Node.js (offers to install it via winget i
 | `run.bat stop` | Stop the background Web2API server |
 | `run-desktop.bat` | Start the native Windows app (Electron) with hot reload |
 | `run-desktop.bat clean` | Reinstall dependencies (including the Electron runtime), then start |
+| `run-desktop.bat mock` | Start with the mock Web2API server (stops together with the app) |
 | `run-desktop.bat stop` | Stop the background Web2API server |
 | `build.bat` | Type-check + production web build into `dist/` |
 | `build.bat preview` | Build, then serve it on <http://localhost:4173> |
@@ -206,6 +207,7 @@ Open **Settings → API** (gear icon, or `Ctrl+Shift+S`).
 | **API Key** | Sent as `Authorization: Bearer <key>`. Default `sk-gemini`. |
 | **Default model** | Used for new conversations. Pick from the discovered list or type any model ID. |
 | **Use local proxy** | On by default. Routes requests through the GlassGem dev server to avoid CORS problems (see §7). |
+| **Request timeout** | How long non-streaming requests may run (1–10 min, default 2 min). Streaming responses never time out — slow models may need 5–10 min. |
 | **Test Connection** | Calls `GET /v1/models` (falls back to a tiny chat completion if the server has no `/models`). Shows **● Connected** with latency, or **● Connection failed** with a plain-language explanation. |
 
 The connection status pill in the top bar is always visible. Click it for the API URL, current model, last successful request and latency. GlassGem re-tests automatically on startup, whenever the API settings change, and every 20 s while offline.
@@ -220,11 +222,15 @@ Each starts as *Unknown*, becomes *Supported* after a successful observed reques
 
 ## 6. Troubleshooting
 
+The table below covers the common cases; the expanded, step-by-step guide
+(including a 60-second health check and a pre-release test checklist) lives
+in [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md).
+
 | Symptom | What it means | Fix |
 | --- | --- | --- |
 | **Unable to connect to Gemini Web2API** / *Web2API offline* | Nothing is listening at the Base URL. | Start Web2API (`run.bat` does this automatically). Check `.web2api.log` in the project folder. Confirm the port (8081 by default). |
 | **Mock answers only** (startup warns about the *MOCK server*) | No real server binary, Go toolchain, or release download was available, even though the backend sources are bundled. | Install [Go](https://go.dev) 1.22+ so GlassGem can build the bundled server, or allow the prebuilt download from github.com. See [docs/BACKEND.md](./docs/BACKEND.md). The mock is only for trying the UI. |
-| **Web2API keeps running after GlassGem exits** | The server is a background daemon by design. | This is normal — the next start reuses it. Stop it with `run.bat stop` / `./run.sh stop`. |
+| **Web2API keeps running after GlassGem exits** | The server is a background daemon by design (browser/PWA flow). | This is normal — the next start reuses it. Stop it with `run.bat stop` / `./run.sh stop`. The desktop app stops its session's server automatically when it closes; only a server that was already running beforehand stays up. |
 | **API key rejected (401)** | The key doesn't match the server. | Settings → API → enter the key configured in Web2API (default `sk-gemini`). |
 | **Access denied (403)** | The server refused the request. | Gemini session/cookies on the Web2API side may have expired — re-login there. |
 | **Endpoint or model not found (404)** | Wrong Base URL (missing `/v1`) or unknown model ID. | Fix the URL; pick a model from the list. |
@@ -291,10 +297,11 @@ Nothing is uploaded anywhere. Clearing site data in the browser erases it — ex
 
 ## 12. Development
 
-Deeper documentation lives in [`docs/`](./docs): [architecture](./docs/ARCHITECTURE.md) · [development guide](./docs/DEVELOPMENT.md) · [backend integration](./docs/BACKEND.md) · [security & privacy](./docs/SECURITY.md).
+Deeper documentation lives in [`docs/`](./docs): [architecture](./docs/ARCHITECTURE.md) · [development guide](./docs/DEVELOPMENT.md) · [backend integration](./docs/BACKEND.md) · [security & privacy](./docs/SECURITY.md) · [feature guide](./docs/FEATURES.md) · [testing guide](./docs/TESTING.md) · [troubleshooting](./docs/TROUBLESHOOTING.md) · [roadmap](./docs/ROADMAP.md).
 
 ```
-docs/             architecture, development guide, backend notes, security notes
+docs/             architecture, development, backend, security, features,
+                  testing, troubleshooting and roadmap guides
 gemini-web2api-ikhsan3adi/
                   vendored Go backend (OpenAI-compatible Web2API server,
                   started automatically by the launchers)
@@ -305,7 +312,7 @@ src/
     dialogs/        settings, search (Ctrl+K), shortcuts, prompt library, onboarding, debug, delete confirm,
                     DialogHost (lazy-loads each dialog on first open)
     layout/         top bar, logo, connection status, PWA prompt
-    sidebar/        conversation list + items
+    sidebar/        conversation list + items (groups, favorites, archived view)
     ui/             glass primitives (dialog, menu, switch, segmented, tooltip, fields, empty state…)
     ErrorBoundary.tsx  crash recovery screen with copyable diagnostics
   hooks/          theme, media queries, shortcuts, connection monitor, search, toast
@@ -325,7 +332,8 @@ electron/
   preload.cjs     minimal isolated renderer bridge
 scripts/
   web2api-proxy.ts  local CORS proxy (Vite plugin)
-  desktop-dev.mjs   cross-platform Vite + Electron development launcher
+  desktop-dev.mjs   cross-platform Vite + Electron development launcher;
+                  owns the session-scoped Web2API daemon (stopped on exit)
   mock-web2api.mjs  mock server for UI development
   ensure-web2api.mjs  Web2API auto-installer: vendored checkout/build/download + daemon runner
   stop-web2api.mjs  stops the background Web2API daemon
@@ -380,9 +388,9 @@ A repeatable GitHub Actions workflow is included at `.github/workflows/windows-d
 
 - Gemini chat with **streaming** (automatic fallback to non-streaming if the server rejects `stream: true`)
 - **Bundled Web2API backend** — the server sources ship in the repo and are built/downloaded and started automatically; works offline once set up
-- Multiple conversations, grouped Today / Yesterday / Previous 7 days / Older, with **pin**, **favorite** and **duplicate**
+- Multiple conversations, grouped Today / Yesterday / Previous 7 days / Older, with **pin**, **favorite**, **duplicate** and **archive** (archived chats stay searchable and can be restored from the sidebar's Archived view)
 - Instant local **search** across titles and message content, with highlighted matches (`Ctrl+K`)
-- Rename (double-click or menu), delete (confirmed), clear, export per conversation
+- Rename (double-click or menu), delete (confirmed), clear, export per conversation, copy a whole conversation as Markdown
 - Automatic local title from the first message (no extra API call)
 - Full **Markdown** rendering: headings, lists, tables, blockquotes, links, task lists, images
 - **Code blocks** with language label, syntax highlighting and Copy / *Copied ✓*
@@ -395,6 +403,7 @@ A repeatable GitHub Actions workflow is included at `.github/workflows/windows-d
 - **Crash-proof composer** — per-conversation drafts survive reloads (text persisted locally, attachments kept in memory)
 - Per-conversation **system instructions** and optional default system prompt
 - Optional `temperature` / `top_p` / `max_tokens` — off by default, auto-disabled if the server rejects them
+- **Configurable request timeout** (1–10 min) for slow, non-streaming generations — streams never time out
 - **Prompt library** with categories, favorites, create/edit/delete, one-click insert
 - **Settings**: General (theme, density, reduced motion, debug panel) · API · Chat · Prompts · Privacy · Data · About
 - System / Light / Dark themes, each designed on its own terms; `prefers-reduced-motion` respected

@@ -1,6 +1,7 @@
 import type { Attachment, Conversation, ExportFormat, GlassGemExport, GlassGemExportConversation, Message, SavedPrompt } from '@/types'
 import { formatBytes, formatDateTime, safeFilename, uid } from '@/lib/utils'
 import { stripElicitations } from '@/lib/elicitations'
+import { DEFAULT_MODEL } from './geminiWebApi'
 
 const ROLE_LABEL: Record<string, string> = { user: 'User', assistant: 'Gemini', system: 'System' }
 
@@ -179,7 +180,7 @@ function sanitizeConversationItem(raw: unknown, index: number): GlassGemExportCo
     title: title.slice(0, 120),
     createdAt: num(c.createdAt, now),
     updatedAt: num(c.updatedAt, num(c.createdAt, now)),
-    model: str(c.model, 'gemini-3.6-flash'),
+    model: str(c.model, DEFAULT_MODEL),
     favorite: bool(c.favorite),
     archived: bool(c.archived),
     pinned: bool(c.pinned),

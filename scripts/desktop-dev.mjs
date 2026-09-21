@@ -19,6 +19,7 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import { ensureWeb2Api } from './ensure-web2api.mjs'
+import { stopManagedServer } from './stop-web2api.mjs'
 
 const require = createRequire(import.meta.url)
 const viteUrl = 'http://127.0.0.1:5173'
@@ -26,9 +27,20 @@ const viteUrl = 'http://127.0.0.1:5173'
 let viteProcess
 let electronProcess
 let shuttingDown = false
+let web2ApiOwned = false
 
 export function projectRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+}
+
+/**
+ * True when the Web2API daemon was started by THIS desktop session and must
+ * therefore be stopped again when the session ends. A server that was already
+ * running beforehand (npm run web2api, a system service, a previous session)
+ * reports alreadyRunning / skipped and is deliberately left untouched.
+ */
+export function ownsWeb2Api(result) {
+  return !!result && !result.alreadyRunning && !result.skipped && Number.isInteger(result.pid) && result.pid > 0
 }
 
 /**
@@ -53,11 +65,33 @@ async function start() {
     )
   }
 
-  // Ensure Gemini Web2API is present, installed, and running
+  // Ensure Gemini Web2API is present, installed, and running. The daemon is
+  // session-scoped: it shares this terminal, so Ctrl+C or closing the window
+  // stops it with the session - and when the app closes normally, shutdown()
+  // below stops it explicitly. GLASSGEM_DESKTOP_MOCK=1 (set by
+  // "run-desktop.bat mock") starts the mock server through the same lifecycle
+  // instead of a separate window that outlives the app.
+  const forceMock = process.env.GLASSGEM_DESKTOP_MOCK === '1'
+  const prevSkip = process.env.GLASSGEM_SKIP_AUTO_WEB2API
+  if (forceMock) {
+    // An explicit mock request ("run-desktop.bat mock") beats the skip flag:
+    // without this, SKIP_AUTO_WEB2API would silently leave the app backendless.
+    delete process.env.GLASSGEM_SKIP_AUTO_WEB2API
+  }
   try {
-    await ensureWeb2Api({ background: true })
+    const result = await ensureWeb2Api({
+      background: true,
+      sessionScoped: true,
+      forceMock,
+    })
+    web2ApiOwned = ownsWeb2Api(result)
   } catch (err) {
     console.warn(`[WARN] Could not auto-start Gemini Web2API: ${err.message}`)
+  } finally {
+    if (forceMock) {
+      if (prevSkip === undefined) delete process.env.GLASSGEM_SKIP_AUTO_WEB2API
+      else process.env.GLASSGEM_SKIP_AUTO_WEB2API = prevSkip
+    }
   }
 
   viteProcess = spawn(command, args, {
@@ -119,11 +153,24 @@ async function waitForVite() {
   throw new Error(`Vite did not become ready at ${viteUrl}.`)
 }
 
-function shutdown(code = 0) {
+async function shutdown(code = 0) {
   if (shuttingDown) return
   shuttingDown = true
   if (electronProcess && !electronProcess.killed) electronProcess.kill()
   if (viteProcess && !viteProcess.killed) viteProcess.kill()
+  if (web2ApiOwned) {
+    // The desktop session started the Web2API server - stop it again so no
+    // orphaned backend keeps running after the app window closes. (Closing
+    // the whole terminal also stops it: the session-scoped daemon shares
+    // this console and receives the same OS console event.)
+    try {
+      console.log('[INFO]  Stopping the Web2API server started by this desktop session...')
+      await stopManagedServer()
+    } catch (err) {
+      console.warn(`[WARN] Could not stop the Web2API server: ${err instanceof Error ? err.message : String(err)}`)
+      console.warn('       Stop it manually with:  npm run web2api:stop')
+    }
+  }
   process.exitCode = code
 }
 

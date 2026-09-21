@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import { ChevronRight, CopyPlus, Download, MoreHorizontal, Pencil, Pin, PinOff, Star, Trash2, FileJson, FileText, FileType } from 'lucide-react'
+import { Archive, ArchiveRestore, ChevronRight, CopyPlus, Download, MoreHorizontal, Pencil, Pin, PinOff, Star, Trash2, FileJson, FileText, FileType } from 'lucide-react'
 import { cn, formatRelative } from '@/lib/utils'
 import type { Conversation } from '@/types'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from '@/components/ui/Menu'
@@ -17,12 +17,13 @@ interface Props {
   onStartRename: (id: string | null) => void
   onFavorite: (id: string) => void
   onPin: (id: string) => void
+  onArchive: (id: string) => void
   onDelete: (id: string) => void
   onDuplicate: (id: string) => void
   onExport: (id: string, format: 'json' | 'markdown' | 'txt') => void
 }
 
-export const ConversationItem = memo(function ConversationItem({ conversation: c, active, renaming, query, snippet, onSelect, onRename, onStartRename, onFavorite, onPin, onDelete, onDuplicate, onExport }: Props) {
+export const ConversationItem = memo(function ConversationItem({ conversation: c, active, renaming, query, snippet, onSelect, onRename, onStartRename, onFavorite, onPin, onArchive, onDelete, onDuplicate, onExport }: Props) {
   const [draft, setDraft] = useState(c.title)
   const [menuOpen, setMenuOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -82,6 +83,7 @@ export const ConversationItem = memo(function ConversationItem({ conversation: c
           <div className="flex items-center gap-1.5">
             {c.pinned && <Pin size={11} className="shrink-0 text-accent" aria-label="Pinned" />}
             {c.favorite && <Star size={11} className="shrink-0 fill-warning text-warning" aria-label="Favorite" />}
+            {c.archived && <Archive size={11} className="shrink-0 text-fg-subtle" aria-label="Archived" />}
             <span className={cn('truncate text-[13.5px] leading-5', active ? 'font-semibold text-fg' : 'font-medium text-fg/90')}>{query ? <Highlight text={c.title} query={query} /> : c.title}</span>
           </div>
           {(snippet || c.preview) && (
@@ -112,6 +114,9 @@ export const ConversationItem = memo(function ConversationItem({ conversation: c
             </MenuItem>
             <MenuItem icon={c.pinned ? <PinOff size={14} /> : <Pin size={14} />} onSelect={() => onPin(c.id)}>
               {c.pinned ? 'Unpin' : 'Pin to top'}
+            </MenuItem>
+            <MenuItem icon={c.archived ? <ArchiveRestore size={14} /> : <Archive size={14} />} onSelect={() => onArchive(c.id)}>
+              {c.archived ? 'Unarchive' : 'Archive'}
             </MenuItem>
             <MenuSub>
               <MenuSubTrigger>

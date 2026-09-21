@@ -71,6 +71,12 @@ export function deleteDraft(conversationId: string) {
   setDraft(conversationId, '')
 }
 
+/** Drops every persisted draft (used when all conversations are deleted). */
+export function clearDrafts() {
+  load().clear()
+  schedulePersist()
+}
+
 /* ---------------- attachments (runtime only) ---------------- */
 
 const attachmentDrafts = new Map<string, unknown[]>()

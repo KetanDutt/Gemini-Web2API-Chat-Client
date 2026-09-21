@@ -5,6 +5,7 @@ import { ApiError, isAbortError, normalizeError } from '@/services/errors'
 import { shouldSendSamplingParams, shouldSendSystemMessage, shouldTryStreaming } from '@/services/capabilities'
 import type { Attachment, Conversation, GlassGemExportConversation, Message, MessageVersion } from '@/types'
 import { previewFromContent, titleFromMessage, uid } from '@/lib/utils'
+import { clearDrafts, deleteDraft } from '@/services/drafts'
 import { useSettings, selectApiConfig } from './settingsStore'
 import { useConnection } from './connectionStore'
 import { useStreaming } from './streamingStore'
@@ -29,6 +30,7 @@ interface ConversationStore {
   renameConversation: (id: string, title: string) => Promise<void>
   toggleFavorite: (id: string) => Promise<void>
   togglePinned: (id: string) => Promise<void>
+  toggleArchived: (id: string) => Promise<void>
   setConversationModel: (id: string, model: string) => Promise<void>
   setSystemPrompt: (id: string, prompt: string) => Promise<void>
   deleteConversation: (id: string) => Promise<void>
@@ -49,6 +51,14 @@ interface ConversationStore {
 }
 
 const sortConversations = (list: Conversation[]) => [...list].sort((a, b) => b.updatedAt - a.updatedAt)
+
+/**
+ * In-flight load of the active conversation's messages. Anything that needs a
+ * consistent view of the conversation (send, regenerate, edit & resend) awaits
+ * it first, so a quickly-typed message can never race the initial load and
+ * end up with a wrong `order` or a truncated request history.
+ */
+let activeLoad: Promise<void> | null = null
 
 /* ------------------------------------------------------------------ */
 /*  Store                                                              */
@@ -83,13 +93,27 @@ export const useConversations = create<ConversationStore>()((set, get) => ({
       set({ messages: [], loadingMessages: false })
       return
     }
-    const messages = await db.messages.where('[conversationId+order]').between([id, -Infinity], [id, Infinity]).toArray()
-    // Guard against races if the user switched again while loading.
-    if (get().activeId === id) set({ messages, loadingMessages: false })
+    const load = (async () => {
+      const messages = await db.messages.where('[conversationId+order]').between([id, -Infinity], [id, Infinity]).toArray()
+      // Guard against races if the user switched again while loading.
+      if (get().activeId === id) set({ messages, loadingMessages: false })
+    })()
+    activeLoad = load
+    try {
+      await load
+    } finally {
+      if (activeLoad === load) activeLoad = null
+    }
   },
 
   getConversationMessages: async (id) => {
-    if (get().activeId === id) return get().messages
+    // Never read the in-memory list while it is still being swapped in: the
+    // stale window during a conversation switch must not leak into request
+    // building. Wait for the pending load, then fall back to the database
+    // whenever the store cannot serve a settled view of this conversation.
+    if (activeLoad) await activeLoad.catch(() => undefined)
+    const s = get()
+    if (s.activeId === id && !s.loadingMessages) return s.messages
     return db.messages.where('[conversationId+order]').between([id, -Infinity], [id, Infinity]).toArray()
   },
 
@@ -138,6 +162,14 @@ export const useConversations = create<ConversationStore>()((set, get) => ({
     await updateConversation(id, { pinned: !c.pinned }, set, false)
   },
 
+  toggleArchived: async (id) => {
+    const c = get().conversations.find((x) => x.id === id)
+    if (!c) return
+    await updateConversation(id, { archived: !c.archived }, set, false)
+    // Archiving the open chat closes it, exactly like deleting would.
+    if (!c.archived && get().activeId === id) await get().setActive(null)
+  },
+
   setConversationModel: async (id, model) => {
     await updateConversation(id, { model }, set, false)
   },
@@ -152,6 +184,7 @@ export const useConversations = create<ConversationStore>()((set, get) => ({
       await db.messages.where('conversationId').equals(id).delete()
       await db.conversations.delete(id)
     })
+    deleteDraft(id)
     set((s) => ({ conversations: s.conversations.filter((c) => c.id !== id) }))
     if (get().activeId === id) await get().setActive(null)
   },
@@ -159,6 +192,7 @@ export const useConversations = create<ConversationStore>()((set, get) => ({
   clearConversation: async (id) => {
     get().stopGeneration(id)
     await db.messages.where('conversationId').equals(id).delete()
+    deleteDraft(id)
     await updateConversation(id, { preview: undefined, messageCount: 0 }, set, false)
     if (get().activeId === id) set({ messages: [] })
   },
@@ -169,6 +203,7 @@ export const useConversations = create<ConversationStore>()((set, get) => ({
       await db.messages.clear()
       await db.conversations.clear()
     })
+    clearDrafts()
     set({ conversations: [], messages: [], activeId: null })
     localStorage.removeItem('glassgem.activeConversation')
   },
@@ -184,6 +219,7 @@ export const useConversations = create<ConversationStore>()((set, get) => ({
       createdAt: now,
       updatedAt: now,
       pinned: false,
+      archived: false,
       titleEdited: true,
     }
     const sourceMessages = await db.messages.where('[conversationId+order]').between([id, -Infinity], [id, Infinity]).toArray()

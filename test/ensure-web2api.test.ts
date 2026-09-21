@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { createHash } from 'node:crypto'
 import http from 'node:http'
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
@@ -16,9 +16,11 @@ import {
   parsePortFromUrl,
   releaseAssetName,
   web2apiBinaryName,
+  daemonSpawnOptions,
   ensureWeb2Api,
   ensureWeb2ApiConfig,
   ensurePrebuiltBinary,
+  readLivePidEntry,
   vendoredWeb2ApiDir,
   VENDORED_DIR_NAME,
   EXTERNAL_DIR_NAME,
@@ -343,3 +345,88 @@ test(
     }
   },
 )
+
+test('daemonSpawnOptions: classic daemons are fully detached', () => {
+  assert.deepEqual(daemonSpawnOptions(), { detached: true, windowsHide: true })
+  assert.deepEqual(daemonSpawnOptions({}), { detached: true, windowsHide: true })
+  assert.deepEqual(daemonSpawnOptions({ sessionScoped: false }), { detached: true, windowsHide: true })
+})
+
+test('daemonSpawnOptions: session-scoped daemons share the caller console', () => {
+  // Attached to the caller's console/terminal: Ctrl+C or closing it stops
+  // the daemon together with the session (the OS delivers the event).
+  assert.deepEqual(daemonSpawnOptions({ sessionScoped: true }), { detached: false, windowsHide: false })
+})
+
+test('readLivePidEntry: missing, stale and live pid files', () => {
+  const stateDir = mkdtempSync(path.join(os.tmpdir(), 'gg-web2api-pidentry-'))
+  const pidFile = path.join(stateDir, '.web2api.pid')
+  try {
+    assert.equal(readLivePidEntry(stateDir), null) // no file at all
+    writeFileSync(pidFile, 'not json at all')
+    assert.equal(readLivePidEntry(stateDir), null) // unparsable
+    writeFileSync(pidFile, JSON.stringify({ pid: 999999999, port: 59996, started: Date.now() }))
+    assert.equal(readLivePidEntry(stateDir), null) // recorded process is dead
+    writeFileSync(pidFile, JSON.stringify({ pid: process.pid, port: 59996, started: Date.now(), type: 'mock' }))
+    const live = readLivePidEntry(stateDir)
+    assert.equal(live?.pid, process.pid) // this test process is alive
+  } finally {
+    rmSync(stateDir, { recursive: true, force: true })
+  }
+})
+
+test('ensureWeb2Api: adopts a live booting daemon instead of double-spawning', async () => {
+  const stateDir = mkdtempSync(path.join(os.tmpdir(), 'gg-web2api-adopt-'))
+  const port = 59994
+  const pidFile = path.join(stateDir, '.web2api.pid')
+  try {
+    // Nothing listens on the port, but the pid file points at a live process
+    // (this test) "still booting" - ensure must wait for it, not spawn a
+    // second server that would fight over the port and the pid file.
+    writeFileSync(pidFile, JSON.stringify({ pid: process.pid, port, started: Date.now(), type: 'binary' }))
+    const result = await ensureWeb2Api({ port, stateDir, forceMock: true, timeoutSec: 1 })
+    assert.equal(result.running, false)
+    assert.equal(result.alreadyRunning, true)
+    assert.equal(result.pid, process.pid)
+    // No mock was spawned: the pid file still records the adopted process.
+    assert.equal(JSON.parse(readFileSync(pidFile, 'utf8')).pid, process.pid)
+  } finally {
+    rmSync(stateDir, { recursive: true, force: true })
+  }
+})
+
+test('ensureWeb2Api: starts a fresh daemon when a recorded booting daemon dies', async () => {
+  const stateDir = mkdtempSync(path.join(os.tmpdir(), 'gg-web2api-respawn-'))
+  const port = 59995
+  const pidFile = path.join(stateDir, '.web2api.pid')
+  const doomed = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 1500)'], { stdio: 'ignore' })
+  try {
+    // The recorded "booting daemon" dies while ensure waits for it - ensure
+    // must notice and start a fresh (mock) server in its place.
+    assert.ok(Number.isInteger(doomed.pid) && doomed.pid > 0)
+    writeFileSync(pidFile, JSON.stringify({ pid: doomed.pid, port, started: Date.now(), type: 'binary' }))
+    const result = await ensureWeb2Api({ port, stateDir, forceMock: true, timeoutSec: 15 })
+    assert.equal(result.running, true)
+    assert.equal(result.alreadyRunning, false) // respawned by this call => owned
+    assert.equal(result.launcher?.type, 'mock')
+  } finally {
+    try {
+      const raw = readFileSync(pidFile, 'utf8')
+      const pid = JSON.parse(raw).pid ?? Number(raw)
+      if (Number.isInteger(pid)) {
+        try {
+          process.kill(pid, 'SIGKILL')
+        } catch {}
+        const deadline = Date.now() + 5000
+        while (Date.now() < deadline) {
+          if (!(await isServerResponding(`http://127.0.0.1:${port}/v1/models`, 300))) break
+          await new Promise((r) => setTimeout(r, 200))
+        }
+      }
+    } catch {}
+    try {
+      doomed.kill()
+    } catch {}
+    rmSync(stateDir, { recursive: true, force: true })
+  }
+})

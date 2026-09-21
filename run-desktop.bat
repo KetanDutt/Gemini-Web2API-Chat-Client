@@ -5,13 +5,14 @@ rem
 rem  Double-click this file, or from a terminal:
 rem      run-desktop.bat           start the desktop app (Vite + Electron)
 rem      run-desktop.bat clean     reinstall dependencies first, then start
-rem      run-desktop.bat mock      also start the mock Web2API server
+rem      run-desktop.bat mock      start with the mock Web2API server
 rem      run-desktop.bat stop      stop the background Web2API server and exit
 rem      run-desktop.bat /?        show this help
 rem
-rem  The Web2API server keeps running in the background after GlassGem
-rem  exits. Use "run-desktop.bat stop" to stop it, or just leave it - the
-rem  next start reuses it automatically.
+rem   The Web2API server is started together with the desktop app and
+rem   stopped again when the app window (or this window) closes. A server
+rem   that was already running beforehand is left untouched. Use
+rem   "run-desktop.bat stop" to stop any managed server manually.
 rem
 rem  For the browser/PWA version use run.bat instead - it does not need
 rem  Electron and therefore no access to github.com.
@@ -64,36 +65,19 @@ if "%RC%"=="2" (
 )
 if not "%RC%"=="0" goto :fail
 
-rem ---------- ensure gemini-web2api is present and running -----------
-set "WEB2API=http://127.0.0.1:8081"
-if defined GLASSGEM_WEB2API_URL set "WEB2API=%GLASSGEM_WEB2API_URL%"
+rem ---------- gemini-web2api lifecycle --------------------------------
+rem The desktop session (scripts\desktop-dev.mjs) ensures Gemini Web2API is
+rem present and running before the app starts, prints the same status here,
+rem and stops the server again when the app window closes. A server that was
+rem already running beforehand is left untouched.
 if defined MOCK (
-  echo [INFO]  Starting the mock Web2API server in a separate window on port 8081.
-  echo         It only returns sample answers - use it to try the UI without Gemini.
-  start "GlassGem - Mock Web2API" cmd /k node "scripts\mock-web2api.mjs" 8081
-  timeout /t 2 /nobreak >nul
+  echo [INFO]  Starting GlassGem with the MOCK Web2API server ^(sample answers only^).
+  echo         It stops automatically together with the app.
+  set "GLASSGEM_DESKTOP_MOCK=1"
 ) else (
   echo [INFO]  Ensuring Gemini Web2API is present and running...
   echo         ^(first run: downloads or builds the server - can take a minute^)
-  call node "scripts\ensure-web2api.mjs"
-  if errorlevel 1 (
-    echo [WARN]  Web2API is not answering yet - GlassGem will start anyway and
-    echo         reconnect automatically once the server is up.
-  )
-)
-
-rem ---------- is Web2API reachable? (informational only) --------------
-where curl >nul 2>nul
-if errorlevel 1 (
-  echo [INFO]  Make sure Gemini Web2API is running at %WEB2API% before chatting.
-) else (
-  curl -s -o nul -m 3 "%WEB2API%/v1/models" >nul 2>nul
-  if errorlevel 1 (
-    echo [WARN]  Gemini Web2API does not answer at %WEB2API%.
-    echo         GlassGem will start anyway and reconnect automatically once Web2API is running.
-  ) else (
-    echo [OK]    Gemini Web2API is reachable at %WEB2API%.
-  )
+  echo         The server is stopped automatically when the app closes.
 )
 
 echo.
@@ -111,6 +95,7 @@ if not "%RC%"=="0" (
 )
 echo.
 echo   GlassGem Desktop stopped.
+echo   Any Web2API server started with it was stopped automatically.
 pause
 exit /b 0
 
@@ -131,11 +116,15 @@ echo.
 echo   run-desktop.bat [clean] [mock] [stop]
 echo.
 echo     clean   remove node_modules and reinstall before starting
-echo     mock    also start the mock Web2API server ^(sample answers only^)
+echo     mock    start with the mock Web2API server ^(sample answers only^)
 echo     stop    stop the background Web2API server and exit
 echo.
 echo   Starts GlassGem as a native Windows window (Electron) with hot reload.
 echo   The browser/PWA version is started by run.bat instead.
+echo.
+echo   The Web2API server is started with the desktop session and stopped
+echo   again when the app window closes. A server that was already running
+echo   beforehand ^(npm run web2api, a service^) is left untouched.
 echo.
 echo   Environment: set GLASSGEM_WEB2API_URL to override the Web2API address
 echo   that is checked at startup ^(default http://127.0.0.1:8081^). Its port

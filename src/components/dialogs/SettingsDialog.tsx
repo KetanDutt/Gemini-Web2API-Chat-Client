@@ -7,6 +7,7 @@ import { Segmented } from '@/components/ui/Segmented'
 import { FieldRow, Section } from '@/components/ui/Field'
 import { useSettings } from '@/stores/settingsStore'
 import { useConnection } from '@/stores/connectionStore'
+import { DEFAULT_MODEL } from '@/services/geminiWebApi'
 import { useConversations } from '@/stores/conversationStore'
 import { usePrompts } from '@/stores/promptStore'
 import { useUI, type SettingsTab } from '@/stores/uiStore'
@@ -146,7 +147,7 @@ export function ApiForm({ onConnected, compact }: { onConnected?: () => void; co
   const urlValid = /^https?:\/\/.+/i.test(baseUrl.trim())
 
   const save = () => {
-    settings.update({ baseUrl: baseUrl.trim().replace(/\/+$/, ''), apiKey: apiKey.trim(), defaultModel: model.trim() || 'gemini-3.6-flash' })
+    settings.update({ baseUrl: baseUrl.trim().replace(/\/+$/, ''), apiKey: apiKey.trim(), defaultModel: model.trim() || DEFAULT_MODEL })
     toast.success('Settings saved')
   }
 
@@ -291,6 +292,18 @@ function ApiTab() {
       <Section title="Connection">
         <FieldRow label="Use local proxy (recommended)" description="Routes requests through the GlassGem dev/preview server to avoid browser CORS restrictions. Only private / loopback addresses are allowed." htmlFor="useProxy">
           <Switch id="useProxy" checked={s.useProxy} onCheckedChange={(v) => s.set('useProxy', v)} />
+        </FieldRow>
+        <FieldRow label="Request timeout" description="How long non-streaming requests may run before GlassGem gives up. Streaming responses never time out. Slow models may need 5–10 minutes.">
+          <Segmented
+            value={String(s.requestTimeoutSec)}
+            onChange={(v) => s.set('requestTimeoutSec', Number(v))}
+            options={[
+              { value: '60', label: '1 min' },
+              { value: '120', label: '2 min' },
+              { value: '300', label: '5 min' },
+              { value: '600', label: '10 min' },
+            ]}
+          />
         </FieldRow>
         <FieldRow label="Model list" description="Refresh models from GET /v1/models.">
           <button

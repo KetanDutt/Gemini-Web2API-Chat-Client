@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 // @ts-ignore - plain ESM helper module without type declarations
-import { projectRoot, viteLaunchSpec } from '../scripts/desktop-dev.mjs'
+import { ownsWeb2Api, projectRoot, viteLaunchSpec } from '../scripts/desktop-dev.mjs'
 
 test('viteLaunchSpec: launches Vite through node itself, never a shell shim', () => {
   const { command, args, viteBin } = viteLaunchSpec()
@@ -29,4 +29,21 @@ test('viteLaunchSpec: Vite bin path resolves inside the project', () => {
   const { viteBin } = viteLaunchSpec()
   assert.ok(viteBin.startsWith(projectRoot() + path.sep))
   assert.ok(existsSync(viteBin), 'node_modules is installed when tests run')
+})
+
+test('ownsWeb2Api: only a daemon this session spawned is owned', () => {
+  // Already running beforehand (npm run web2api, a service) - never owned.
+  assert.equal(ownsWeb2Api({ running: true, alreadyRunning: true }), false)
+  assert.equal(ownsWeb2Api({ running: true, alreadyRunning: true, pid: 123 }), false)
+  // Auto-start disabled entirely (GLASSGEM_SKIP_AUTO_WEB2API) - never owned.
+  assert.equal(ownsWeb2Api({ running: false, skipped: true }), false)
+  assert.equal(ownsWeb2Api({ running: true, skipped: true, alreadyRunning: false, pid: 123 }), false)
+  // Spawned by this call - owned, even when it never answered (slow boot).
+  assert.equal(ownsWeb2Api({ running: true, alreadyRunning: false, pid: 123 }), true)
+  assert.equal(ownsWeb2Api({ running: false, alreadyRunning: false, pid: 123 }), true)
+  // Spawn failed / no pid - nothing to stop.
+  assert.equal(ownsWeb2Api({ running: false, alreadyRunning: false }), false)
+  assert.equal(ownsWeb2Api({ running: false, alreadyRunning: false, launcher: { type: 'mock' } }), false)
+  assert.equal(ownsWeb2Api(null), false)
+  assert.equal(ownsWeb2Api(undefined), false)
 })

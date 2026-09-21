@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ArrowDown } from 'lucide-react'
 import { useConversations } from '@/stores/conversationStore'
 import { useSettings } from '@/stores/settingsStore'
@@ -79,7 +79,7 @@ export function MessageList({ onScrolledChange }: { onScrolledChange?: (scrolled
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' })
   }
 
-  const visible = messages.filter((m) => m.role !== 'system')
+  const visible = useMemo(() => messages.filter((m) => m.role !== 'system'), [messages])
 
   return (
     <div className="relative min-h-0 flex-1">

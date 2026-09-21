@@ -2,7 +2,9 @@
 
 Everything you need to develop, test and ship GlassGem. For the system design,
 see [ARCHITECTURE.md](./ARCHITECTURE.md); for the trust model, see
-[SECURITY.md](./SECURITY.md).
+[SECURITY.md](./SECURITY.md); for the test suites and release checklist, see
+[TESTING.md](./TESTING.md); for user-facing behaviour, see
+[FEATURES.md](./FEATURES.md); for planned work, see [ROADMAP.md](./ROADMAP.md).
 
 ## Prerequisites
 
@@ -85,17 +87,20 @@ npm test
 
 - `test/register.mjs` + `test/loader.mjs` teach Node about the `@/` alias and
   extensionless TS imports (mirroring the Vite/tsconfig setup).
-- Covered today: title/preview/filename utilities, error normalisation, the
-  capability decision helpers, elicitation parsing, the export/import
-  validators, composer drafts, and the Web2API launcher (vendored-directory
-  discovery, config generation, port resolution, daemon lifecycle, release
-  downloads against a local mirror).
+- Covered today: title/preview/filename utilities (incl. export timestamp
+  slugs), error normalisation, the capability decision helpers, elicitation
+  parsing, the export/import validators, composer drafts (incl. bulk
+  clearing), the settings → API-config mapping (request-timeout clamping),
+  and the Web2API launcher (vendored-directory discovery, config generation,
+  port resolution, daemon lifecycle, release downloads against a local
+  mirror).
 - The vendored Go backend has its own test suite: run `go test ./...` inside
   `gemini-web2api-ikhsan3adi/` when a Go toolchain is available.
 
 Add new tests as `test/*.test.ts`. Keep them dependency-free and focused on
 pure logic (services/lib); UI behaviour is verified manually against the mock
-server.
+server — see [TESTING.md](./TESTING.md) for the full guide, including the
+pre-release manual checklist.
 
 ## Environment variables
 
@@ -138,9 +143,15 @@ init system). Render helpers can also be called directly after sourcing with
 
 `npm run desktop:dev` (or **`run-desktop.bat`** on Windows) starts Vite
 (strict port 5173) and, once it answers, launches Electron pointed at it.
-Ctrl+C / closing the window tears both down. Note that the desktop dev server
-claims port 5173 with `--strictPort`, so stop any running `run.bat` dev server
-first. `desktop.bat dev|build|portable|pack|clean` wraps the same commands.
+The session also owns the Web2API backend: the daemon is started
+session-scoped (attached to this terminal), and closing the Electron window,
+pressing Ctrl+C, or closing the terminal stops it together with Vite and
+Electron — no orphaned backend is left behind. A server that was already
+running beforehand (`npm run web2api`, a service) is left untouched.
+`GLASSGEM_DESKTOP_MOCK=1` (set by `run-desktop.bat mock`) runs the mock server
+through the same lifecycle. Note that the desktop dev server claims port 5173
+with `--strictPort`, so stop any running `run.bat` dev server first.
+`desktop.bat dev|build|portable|pack|clean` wraps the same commands.
 
 ## Continuous integration
 
