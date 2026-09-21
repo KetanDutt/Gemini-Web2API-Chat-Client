@@ -17,7 +17,10 @@
  *      prebuilt release binary (so neither git nor Go is strictly required)
  *   5. Writes a default config.json (API key sk-gemini) when none exists
  *   6. Starts the server as a detached background daemon (default) and waits
- *      until it answers before returning
+ *      until it answers before returning. With sessionScoped (API-only
+ *      option, used by the desktop session) the daemon instead shares the
+ *      caller's console/terminal, so Ctrl+C or closing that terminal stops
+ *      it together with the session.
  *   7. Falls back to the built-in mock server only when no real server can
  *      be provided (the mock returns sample answers, clearly labelled)
  *
@@ -988,6 +991,53 @@ function describeLauncher(launcher) {
 }
 
 /**
+ * Spawn flags for the background daemon.
+ *
+ * Classic daemons are fully detached (`detached: true`, no console): they
+ * outlive the launcher on purpose and keep serving later GlassGem starts.
+ *
+ * Session-scoped daemons instead stay attached to the caller's console /
+ * terminal: Ctrl+C or closing that terminal stops them together with the
+ * session (the OS delivers the console/terminal event to every attached
+ * process), while they still keep running when only the short-lived ensure
+ * process exits. Output always goes to the log file, so attaching to the
+ * console never prints anything into the user's terminal.
+ */
+export function daemonSpawnOptions({ sessionScoped = false } = {}) {
+  return sessionScoped ? { detached: false, windowsHide: false } : { detached: true, windowsHide: true }
+}
+
+/**
+ * Reads the pid file and returns its entry when the recorded process is still
+ * alive, or null when the file is missing, unreadable or stale. Used to avoid
+ * spawning a second daemon on top of one that is still booting.
+ */
+export function readLivePidEntry(stateDir = projectRoot()) {
+  const file = resolvePidFile(stateDir)
+  if (!existsSync(file)) return null
+  try {
+    const raw = readFileSync(file, 'utf8').trim()
+    if (!raw) return null
+    let entry = null
+    if (raw.startsWith('{')) {
+      const data = JSON.parse(raw)
+      if (Number.isInteger(data?.pid) && data.pid > 0) entry = data
+    } else if (/^\d+$/.test(raw)) {
+      entry = { pid: Number(raw), legacy: true }
+    }
+    if (!entry) return null
+    try {
+      process.kill(entry.pid, 0)
+    } catch {
+      return null // recorded process is gone
+    }
+    return entry
+  } catch {
+    return null
+  }
+}
+
+/**
  * Ensures Gemini Web2API is present, installed, and running.
  *
  * In background mode (default) the server is started as a detached daemon:
@@ -1003,6 +1053,7 @@ export async function ensureWeb2Api({
   forceMock = false,
   installOnly = false,
   stateDir = projectRoot(),
+  sessionScoped = false,
 } = {}) {
   port = validPort(port) ?? resolvePort()
   const checkUrl = `http://127.0.0.1:${port}/v1/models`
@@ -1117,58 +1168,69 @@ export async function ensureWeb2Api({
     return runForeground(launcher, { port, checkUrl, timeoutSec })
   }
 
-  // Detached daemon: stdout/stderr go to the log file, the parent unrefs the
-  // child so THIS process can exit and the launcher continues to GlassGem.
-  let logFd = null
-  try {
-    logFd = openSync(logFile, 'a')
-  } catch (err) {
-    console.warn(`[WARN]  Could not open log file ${logFile}: ${err.message}`)
-  }
-
-  let child
-  try {
-    child = spawn(launcher.command, launcher.args, {
-      cwd: launcher.cwd,
-      stdio: logFd === null ? 'ignore' : ['ignore', logFd, logFd],
-      detached: true,
-      windowsHide: true,
-      env: { ...process.env, PORT: String(port) },
-    })
-  } catch (err) {
-    if (logFd !== null) {
-      try {
-        closeSync(logFd)
-      } catch {}
-    }
-    console.error(`[ERROR] Failed to start ${describeLauncher(launcher)}: ${err.message}`)
-    return { running: false, alreadyRunning: false, launcher }
-  } finally {
-    // The child holds its own copy of the fd; the parent copy can close.
-    if (logFd !== null) {
-      try {
-        closeSync(logFd)
-      } catch {}
-    }
-  }
-
+  // A live pid file means a daemon from an earlier start is still alive but
+  // has not answered yet (slow boot) or is hung: never spawn a second server
+  // on top of it - wait for the recorded one instead, so the pid file keeps
+  // pointing at the real server and it stays stoppable. A pid recorded for a
+  // different port is not ours to wait for.
+  const pidEntry = background ? readLivePidEntry(stateDir) : null
+  const existing = pidEntry && (pidEntry.port == null || pidEntry.port === port) ? pidEntry : null
+  let child = null
   let spawnError = null
   let childExit = null
-  child.on('error', (err) => {
-    spawnError = err
-  })
-  child.on('exit', (code, signal) => {
-    childExit = { code, signal }
-  })
-  // Critical: without unref() the parent would stay alive until the server
-  // exits, hanging every launcher that calls this script.
-  child.unref()
 
-  if (child.pid) {
+  if (existing) {
+    console.log(`[INFO]  A Web2API daemon from an earlier start is still running (PID ${existing.pid}) - waiting for it...`)
+  } else {
+    // Detached daemon: stdout/stderr go to the log file, the parent unrefs
+    // the child so THIS process can exit and the launcher continues to GlassGem.
+    let logFd = null
     try {
-      writeFileSync(pidFile, JSON.stringify({ pid: child.pid, port, started: Date.now(), type: launcher.type }))
-    } catch {}
+      logFd = openSync(logFile, 'a')
+    } catch (err) {
+      console.warn(`[WARN]  Could not open log file ${logFile}: ${err.message}`)
+    }
+
+    try {
+      child = spawn(launcher.command, launcher.args, {
+        cwd: launcher.cwd,
+        stdio: logFd === null ? 'ignore' : ['ignore', logFd, logFd],
+        env: { ...process.env, PORT: String(port) },
+        ...daemonSpawnOptions({ sessionScoped }),
+      })
+    } catch (err) {
+      console.error(`[ERROR] Failed to start ${describeLauncher(launcher)}: ${err.message}`)
+      return { running: false, alreadyRunning: false, launcher }
+    } finally {
+      // The child holds its own copy of the fd; the parent copy can close.
+      if (logFd !== null) {
+        try {
+          closeSync(logFd)
+        } catch {}
+      }
+    }
+
+    child.on('error', (err) => {
+      spawnError = err
+    })
+    child.on('exit', (code, signal) => {
+      childExit = { code, signal }
+    })
+    // Critical: without unref() the parent would stay alive until the server
+    // exits, hanging every launcher that calls this script. This holds for
+    // session-scoped children too: they outlive this process - they merely
+    // share its console, so Ctrl+C or a closed terminal also stops them.
+    child.unref()
+
+    if (child.pid) {
+      try {
+        writeFileSync(pidFile, JSON.stringify({ pid: child.pid, port, started: Date.now(), type: launcher.type }))
+      } catch {}
+    }
   }
+
+  const daemonPid = child?.pid ?? existing?.pid ?? null
+  const adopted = !!existing
 
   // Wait for the server to become responsive (with early-exit detection).
   const start = Date.now()
@@ -1179,7 +1241,7 @@ export async function ensureWeb2Api({
       if (launcher.type === 'mock') {
         console.log('[INFO]  (mock mode: answers are samples; start the real server for Gemini.)')
       }
-      return { running: true, alreadyRunning: false, launcher, pid: child.pid ?? null }
+      return { running: true, alreadyRunning: adopted, launcher, pid: daemonPid }
     }
     if (spawnError) {
       console.error(`[ERROR] Failed to spawn ${describeLauncher(launcher)}: ${spawnError.message}`)
@@ -1203,13 +1265,23 @@ export async function ensureWeb2Api({
       clearStalePid(stateDir)
       return { running: false, alreadyRunning: false, launcher }
     }
+    if (adopted) {
+      // The recorded daemon died while we waited - start a fresh one now.
+      try {
+        process.kill(existing.pid, 0)
+      } catch {
+        console.log('[INFO]  The earlier daemon exited - starting a new one...')
+        clearStalePid(stateDir)
+        return ensureWeb2Api({ port, background, timeoutSec, clone, download, forceMock, installOnly, stateDir, sessionScoped })
+      }
+    }
     await new Promise((r) => setTimeout(r, 250))
   }
 
   console.warn(`[WARN]  Gemini Web2API did not respond on port ${port} after ${timeoutSec}s.`)
-  console.warn(`[WARN]  The server process was started - check its log at ${logFile}.`)
+  if (!adopted) console.warn(`[WARN]  The server process was started - check its log at ${logFile}.`)
   console.warn('[WARN]  GlassGem will start anyway and reconnect automatically once Web2API answers.')
-  return { running: false, alreadyRunning: false, launcher, pid: child.pid ?? null }
+  return { running: false, alreadyRunning: adopted, launcher, pid: daemonPid }
 }
 
 /** Foreground mode: inherit stdio and stay alive until the server exits. */

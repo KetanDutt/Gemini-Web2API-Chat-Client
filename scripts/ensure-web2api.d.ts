@@ -24,6 +24,12 @@ export interface EnsureOptions {
   forceMock?: boolean
   installOnly?: boolean
   stateDir?: string
+  /**
+   * Spawn the daemon attached to the caller's console/terminal instead of
+   * fully detached, so Ctrl+C or closing that terminal stops it with the
+   * session (used by the desktop session, scripts/desktop-dev.mjs).
+   */
+  sessionScoped?: boolean
 }
 
 export const DEFAULT_PORT: number

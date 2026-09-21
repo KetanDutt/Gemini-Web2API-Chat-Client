@@ -64,6 +64,7 @@ version lives in the [README](../README.md); this page goes deeper.
 | *Electron runtime is missing* | `run-desktop.bat` retries several download paths automatically; see the Startup section above for mirror/proxy settings. An antivirus quarantining `electron.exe` is the other usual suspect — allow the project folder, then `run-desktop.bat clean`. |
 | SmartScreen warning on install | The artifacts are unsigned (code signing is a CI away — see README §13). |
 | Data not shared with the browser version | By design: the desktop app uses its own stable origin (`127.0.0.1:17384`). Use Settings → Data export/import to move data between them. |
+| Web2API still running after the desktop app closed | Since 1.2.0 the desktop session stops the server it started — automatically, whether you close the app window, press Ctrl+C, or close the terminal. Only a server that was already running *before* the desktop session (e.g. `npm run web2api` or a service) stays up by design; stop it with `run-desktop.bat stop`. |
 
 ## Getting more help
 

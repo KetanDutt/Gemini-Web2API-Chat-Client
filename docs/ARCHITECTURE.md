@@ -40,6 +40,14 @@ environment checker (`scripts/check-env.bat`) runs in `web` mode for the first
 two rows — skipping the Electron binary download entirely — and in `desktop`
 mode for the third, where it fetches/repairs the runtime from GitHub releases.
 
+The two flows also differ in backend lifecycle: the browser/PWA flow starts
+the Web2API daemon fully detached (it survives GlassGem restarts and the next
+start reuses it), while the desktop flow (`scripts/desktop-dev.mjs`) starts a
+**session-scoped** daemon that is stopped automatically when the Electron
+window closes — and dies with the terminal on Ctrl+C or window close, since
+it shares the session's console/process group. A daemon that was already
+running beforehand is adopted, not owned, and therefore left running.
+
 The proxy exists to sidestep browser CORS restrictions without any cloud
 backend. It is implemented twice on purpose:
 

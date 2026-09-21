@@ -28,6 +28,23 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- **`run-desktop.bat` left the Web2API server running after the desktop app
+  closed.** The desktop session (`run-desktop.bat`, `desktop.bat dev`,
+  `npm run desktop:dev`) now owns the backend it starts: the daemon is
+  spawned session-scoped — attached to the session's console/terminal — and
+  is stopped automatically when the Electron window closes; Ctrl+C or closing
+  the terminal stops it together with the session on Windows, macOS and
+  Linux. A server that was already running beforehand (`npm run web2api`, a
+  system service) is detected and left untouched, and the browser/PWA flow
+  keeps its classic persistent daemon. `run-desktop.bat mock` now starts the
+  mock through the same session lifecycle instead of a separate `cmd /k`
+  window that outlived the app.
+- `ensure-web2api` no longer spawns a second daemon on top of one that is
+  still booting: a live pid file makes the next call wait for the recorded
+  daemon (respawning only if it dies), so the pid file always points at the
+  real server and it stays stoppable.
+- The vendored backend's `run.bat` is a valid batch script again (it had been
+  committed wrapped in markdown code fences and errored out when run).
 - **Send-race on conversation switch**: sending a message while the target
   conversation's messages were still loading computed the new message's
   `order` from a stale list and could send a truncated history to the API.

@@ -143,9 +143,15 @@ init system). Render helpers can also be called directly after sourcing with
 
 `npm run desktop:dev` (or **`run-desktop.bat`** on Windows) starts Vite
 (strict port 5173) and, once it answers, launches Electron pointed at it.
-Ctrl+C / closing the window tears both down. Note that the desktop dev server
-claims port 5173 with `--strictPort`, so stop any running `run.bat` dev server
-first. `desktop.bat dev|build|portable|pack|clean` wraps the same commands.
+The session also owns the Web2API backend: the daemon is started
+session-scoped (attached to this terminal), and closing the Electron window,
+pressing Ctrl+C, or closing the terminal stops it together with Vite and
+Electron — no orphaned backend is left behind. A server that was already
+running beforehand (`npm run web2api`, a service) is left untouched.
+`GLASSGEM_DESKTOP_MOCK=1` (set by `run-desktop.bat mock`) runs the mock server
+through the same lifecycle. Note that the desktop dev server claims port 5173
+with `--strictPort`, so stop any running `run.bat` dev server first.
+`desktop.bat dev|build|portable|pack|clean` wraps the same commands.
 
 ## Continuous integration
 

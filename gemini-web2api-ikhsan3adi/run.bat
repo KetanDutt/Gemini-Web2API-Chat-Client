@@ -1,4 +1,3 @@
-```bat
 @echo off
 title Gemini Web2API
 
@@ -19,4 +18,3 @@ echo Server stopped.
 echo Press any key to close...
 echo ========================================
 pause >nul
-```

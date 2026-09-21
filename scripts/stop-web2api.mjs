@@ -22,12 +22,12 @@ function projectRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 }
 
-function pidFile() {
-  return path.join(projectRoot(), '.web2api.pid')
+function pidFile(stateDir = projectRoot()) {
+  return path.join(stateDir, '.web2api.pid')
 }
 
-function readPidFile() {
-  const file = pidFile()
+function readPidFile(stateDir = projectRoot()) {
+  const file = pidFile(stateDir)
   if (!existsSync(file)) return null
   try {
     const raw = readFileSync(file, 'utf8').trim()
@@ -121,8 +121,13 @@ function looksLikeWeb2Api(commandLine) {
   return false
 }
 
-async function stop({ force = false } = {}) {
-  const entry = readPidFile()
+/**
+ * Stops the managed Web2API server. Exported so the desktop session
+ * (scripts/desktop-dev.mjs) can stop the daemon it owns when the app closes;
+ * the CLI entry point below uses the same function.
+ */
+export async function stopManagedServer({ force = false, stateDir = projectRoot() } = {}) {
+  const entry = readPidFile(stateDir)
   if (!entry) {
     console.log('[INFO]  No managed Web2API server found (no pid file). Nothing to stop.')
     return 0
@@ -141,7 +146,7 @@ async function stop({ force = false } = {}) {
   if (!isAlive(pid)) {
     console.log(`[INFO]  Process ${pid} is not running. Removing the stale pid file.`)
     try {
-      rmSync(pidFile(), { force: true })
+      rmSync(pidFile(stateDir), { force: true })
     } catch {}
     return 0
   }
@@ -193,14 +198,14 @@ async function stop({ force = false } = {}) {
   }
 
   try {
-    rmSync(pidFile(), { force: true })
+    rmSync(pidFile(stateDir), { force: true })
   } catch {}
   console.log('[OK]    Web2API stopped.')
   return 0
 }
 
-function status() {
-  const entry = readPidFile()
+function status(stateDir = projectRoot()) {
+  const entry = readPidFile(stateDir)
   if (!entry) {
     console.log('[INFO]  Web2API: not running (no pid file).')
     return 0
@@ -208,7 +213,7 @@ function status() {
   if (!isAlive(entry.pid)) {
     console.log(`[INFO]  Web2API: not running (stale pid file for PID ${entry.pid}).`)
     try {
-      rmSync(pidFile(), { force: true })
+      rmSync(pidFile(stateDir), { force: true })
     } catch {}
     return 1
   }
@@ -233,7 +238,7 @@ Usage:  node scripts/stop-web2api.mjs [--force] [--status]
   if (args.includes('--status')) {
     process.exit(status())
   }
-  stop({ force: args.includes('--force') }).then(
+  stopManagedServer({ force: args.includes('--force') }).then(
     (code) => process.exit(code),
     (err) => {
       console.error(err)

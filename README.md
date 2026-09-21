@@ -63,7 +63,7 @@ Whenever you start GlassGem (via `./run.sh`, `run.bat`, `run-desktop.bat`, or `n
 3. Creates a default `config.json` (API key `sk-gemini`) inside the backend directory when none exists; your own config is never touched.
 4. Starts the server as a background daemon on port `8081` and waits until it answers. Its output goes to `.web2api.log`; only when no real server can be provided does GlassGem clearly warn and start the built-in mock instead (sample answers only, never real Gemini).
 
-The background server keeps running after GlassGem exits, and the next start reuses it. To stop it: `npm run web2api:stop` · `run.bat stop` · `run-desktop.bat stop` · `./run.sh stop`. Handy extras: `npm run web2api` (ensure + start the daemon by hand) and `npm run web2api:foreground` (blocking, for debugging). Set `GLASSGEM_SKIP_AUTO_WEB2API=1` to disable the auto-start entirely (for example when you run Web2API in Docker — see [docs/BACKEND.md](./docs/BACKEND.md#docker-alternative)), or point GlassGem at another machine by setting `GLASSGEM_WEB2API_URL` (its port is honored when GlassGem starts the server itself).
+In the **browser/PWA flow** (`run.bat`, `./run.sh`, `npm run dev`) the background server keeps running after GlassGem exits, and the next start reuses it. To stop it: `npm run web2api:stop` · `run.bat stop` · `run-desktop.bat stop` · `./run.sh stop`. The **desktop flow** (`run-desktop.bat`, `desktop.bat dev`, `npm run desktop:dev`) instead ties the server to the session: the daemon it starts is stopped automatically when you close the app window or its terminal — and a server that was already running beforehand (e.g. `npm run web2api` or a system service) is left untouched. Handy extras: `npm run web2api` (ensure + start the persistent daemon by hand) and `npm run web2api:foreground` (blocking, for debugging). Set `GLASSGEM_SKIP_AUTO_WEB2API=1` to disable the auto-start entirely (for example when you run Web2API in Docker — see [docs/BACKEND.md](./docs/BACKEND.md#docker-alternative)), or point GlassGem at another machine by setting `GLASSGEM_WEB2API_URL` (its port is honored when GlassGem starts the server itself).
 
 You can also start it manually or as a system service (systemd **and** OpenRC/Alpine) with `sudo sh setup-linux.sh`. When it is running you should be able to open this in a browser:
 
@@ -97,6 +97,7 @@ Double-click **`run.bat`**. It checks Node.js (offers to install it via winget i
 | `run.bat stop` | Stop the background Web2API server |
 | `run-desktop.bat` | Start the native Windows app (Electron) with hot reload |
 | `run-desktop.bat clean` | Reinstall dependencies (including the Electron runtime), then start |
+| `run-desktop.bat mock` | Start with the mock Web2API server (stops together with the app) |
 | `run-desktop.bat stop` | Stop the background Web2API server |
 | `build.bat` | Type-check + production web build into `dist/` |
 | `build.bat preview` | Build, then serve it on <http://localhost:4173> |
@@ -229,7 +230,7 @@ in [docs/TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md).
 | --- | --- | --- |
 | **Unable to connect to Gemini Web2API** / *Web2API offline* | Nothing is listening at the Base URL. | Start Web2API (`run.bat` does this automatically). Check `.web2api.log` in the project folder. Confirm the port (8081 by default). |
 | **Mock answers only** (startup warns about the *MOCK server*) | No real server binary, Go toolchain, or release download was available, even though the backend sources are bundled. | Install [Go](https://go.dev) 1.22+ so GlassGem can build the bundled server, or allow the prebuilt download from github.com. See [docs/BACKEND.md](./docs/BACKEND.md). The mock is only for trying the UI. |
-| **Web2API keeps running after GlassGem exits** | The server is a background daemon by design. | This is normal — the next start reuses it. Stop it with `run.bat stop` / `./run.sh stop`. |
+| **Web2API keeps running after GlassGem exits** | The server is a background daemon by design (browser/PWA flow). | This is normal — the next start reuses it. Stop it with `run.bat stop` / `./run.sh stop`. The desktop app stops its session's server automatically when it closes; only a server that was already running beforehand stays up. |
 | **API key rejected (401)** | The key doesn't match the server. | Settings → API → enter the key configured in Web2API (default `sk-gemini`). |
 | **Access denied (403)** | The server refused the request. | Gemini session/cookies on the Web2API side may have expired — re-login there. |
 | **Endpoint or model not found (404)** | Wrong Base URL (missing `/v1`) or unknown model ID. | Fix the URL; pick a model from the list. |
@@ -331,7 +332,8 @@ electron/
   preload.cjs     minimal isolated renderer bridge
 scripts/
   web2api-proxy.ts  local CORS proxy (Vite plugin)
-  desktop-dev.mjs   cross-platform Vite + Electron development launcher
+  desktop-dev.mjs   cross-platform Vite + Electron development launcher;
+                  owns the session-scoped Web2API daemon (stopped on exit)
   mock-web2api.mjs  mock server for UI development
   ensure-web2api.mjs  Web2API auto-installer: vendored checkout/build/download + daemon runner
   stop-web2api.mjs  stops the background Web2API daemon
