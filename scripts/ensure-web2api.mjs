@@ -7,9 +7,12 @@
  *
  * Behavior:
  *   1. Checks if Web2API is already answering on http://127.0.0.1:<port>
- *   2. If not running, checks if the gemini-web2api directory exists locally
- *   3. If missing, automatically checks it out from
- *      https://github.com/ikhsan3adi/gemini-web2api (needs git)
+ *   2. If not running, prefers the vendored backend sources bundled with this
+ *      repository at gemini-web2api-ikhsan3adi/ (a copy of
+ *      https://github.com/ikhsan3adi/gemini-web2api), then reuses an existing
+ *      gemini-web2api checkout from the usual locations.
+ *   3. If nothing is found, automatically checks the sources out from GitHub
+ *      (needs git)
  *   4. Uses an existing Go binary, builds one with Go, or downloads a
  *      prebuilt release binary (so neither git nor Go is strictly required)
  *   5. Writes a default config.json (API key sk-gemini) when none exists
@@ -76,9 +79,19 @@ const RELEASE_DOWNLOAD_BASE = 'https://github.com/ikhsan3adi/gemini-web2api/rele
 const FALLBACK_RELEASE_TAG = 'v1.1.0'
 const SKIP_ENV = 'GLASSGEM_SKIP_AUTO_WEB2API'
 const DEFAULT_API_KEY = 'sk-gemini'
+// Name of the backend sources vendored inside this repository. GlassGem uses
+// these out of the box instead of requiring a separate checkout.
+export const VENDORED_DIR_NAME = 'gemini-web2api-ikhsan3adi'
+// Legacy name used by earlier releases and by the GitHub clone fallback.
+export const EXTERNAL_DIR_NAME = 'gemini-web2api'
 
 export function projectRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+}
+
+/** The vendored backend directory inside this repository (may not exist). */
+export function vendoredWeb2ApiDir(root = projectRoot()) {
+  return path.join(root, VENDORED_DIR_NAME)
 }
 
 /** Binary file name for a platform (defaults to the current one). */
@@ -207,6 +220,8 @@ function isValidWeb2ApiDir(dir) {
 
 /**
  * Finds an existing gemini-web2api directory.
+ * Priority: WEB2API_DIR (strict) > vendored gemini-web2api-ikhsan3adi inside
+ * this repo > legacy gemini-web2api checkouts (project, parent, home).
  * An explicit WEB2API_DIR wins strictly: when set but invalid, null is
  * returned (with a warning) instead of silently using another checkout.
  */
@@ -225,9 +240,10 @@ export function findWeb2ApiDir(root = projectRoot()) {
     /* ignore */
   }
   const candidates = [
-    path.join(root, 'gemini-web2api'),
-    path.join(root, '..', 'gemini-web2api'),
-    homeDir ? path.join(homeDir, 'gemini-web2api') : null,
+    vendoredWeb2ApiDir(root),
+    path.join(root, EXTERNAL_DIR_NAME),
+    path.join(root, '..', EXTERNAL_DIR_NAME),
+    homeDir ? path.join(homeDir, EXTERNAL_DIR_NAME) : null,
   ].filter(Boolean)
 
   for (const dir of candidates) {
@@ -831,11 +847,14 @@ export function tryGoBuild(web2ApiDir) {
   if (!existsSync(path.join(web2ApiDir, 'main.go'))) return null
   if (!hasGo()) return null
 
-  console.log(`[INFO]  Go toolchain detected. Building ${binaryName}...`)
+  console.log(`[INFO]  Go toolchain detected. Building ${binaryName} (static, CGO_ENABLED=0)...`)
+  // CGO_ENABLED=0: the module is pure Go, so a static build removes any libc
+  // dependency — the same binary then runs on glibc and musl (Alpine) alike.
   const build = spawnSync('go', ['build', '-o', binaryName, '.'], {
     cwd: web2ApiDir,
     stdio: 'inherit',
     shell: false,
+    env: { ...process.env, CGO_ENABLED: process.env.CGO_ENABLED ?? '0' },
   })
   if (build.status === 0 && existsSync(binPath)) {
     console.log(`[OK]    Built ${binPath}`)
@@ -1009,8 +1028,11 @@ export async function ensureWeb2Api({
 
   // 2. Ensure checkout directory (the mock server needs none).
   const root = projectRoot()
-  const defaultTarget = path.join(root, 'gemini-web2api')
+  const defaultTarget = path.join(root, EXTERNAL_DIR_NAME)
   let web2ApiDir = forceMock ? null : findWeb2ApiDir(root)
+  if (web2ApiDir === vendoredWeb2ApiDir(root)) {
+    console.log(`[OK]    Using the bundled Web2API sources at ${VENDORED_DIR_NAME}/`)
+  }
   if (!forceMock && !web2ApiDir) {
     // Honor an explicit WEB2API_DIR as the checkout target when it does not
     // exist yet; an existing-but-invalid folder is left alone and the

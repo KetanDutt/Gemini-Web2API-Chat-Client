@@ -1,11 +1,14 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # ===================================================================
-#  GlassGem - shared environment check (Linux / macOS)
+#  GlassGem - shared environment check (Linux / macOS / Alpine)
 #  Called by run.sh, build.sh.
 #  Makes sure that:
 #    1. we are inside the GlassGem project folder
 #    2. Node.js (>= 20) and npm are installed and on PATH
 #    3. node_modules is present, complete, and matches package-lock.json
+#
+#  Written in POSIX sh: runs under bash, dash and BusyBox ash (Alpine)
+#  alike, so no bash installation is required anywhere.
 # ===================================================================
 set -e
 
@@ -43,7 +46,8 @@ if ! command -v node >/dev/null 2>&1; then
 fi
 
 NODE_VER=$(node -v 2>/dev/null || echo "")
-NODE_MAJOR=$(echo "$NODE_VER" | sed -E 's/^v([0-9]+).*/\1/')
+# BRE only: BusyBox sed (Alpine) is more reliable without -E
+NODE_MAJOR=$(echo "$NODE_VER" | sed 's/^v//; s/\..*//')
 
 if [ -z "$NODE_MAJOR" ]; then
   echo "[ERROR] Could not determine the Node.js version. Output of 'node -v' was: $NODE_VER" >&2

@@ -34,6 +34,7 @@ interface ConversationStore {
   deleteConversation: (id: string) => Promise<void>
   clearConversation: (id: string) => Promise<void>
   deleteAll: () => Promise<void>
+  duplicateConversation: (id: string) => Promise<Conversation | null>
   importConversations: (items: GlassGemExportConversation[]) => Promise<number>
   getConversationMessages: (id: string) => Promise<Message[]>
 
@@ -170,6 +171,35 @@ export const useConversations = create<ConversationStore>()((set, get) => ({
     })
     set({ conversations: [], messages: [], activeId: null })
     localStorage.removeItem('glassgem.activeConversation')
+  },
+
+  duplicateConversation: async (id) => {
+    const source = get().conversations.find((c) => c.id === id) ?? (await db.conversations.get(id))
+    if (!source) return null
+    const now = Date.now()
+    const copy: Conversation = {
+      ...source,
+      id: uid('conv'),
+      title: `${source.title} (copy)`.slice(0, 120),
+      createdAt: now,
+      updatedAt: now,
+      pinned: false,
+      titleEdited: true,
+    }
+    const sourceMessages = await db.messages.where('[conversationId+order]').between([id, -Infinity], [id, Infinity]).toArray()
+    const copiedMessages: Message[] = sourceMessages.map((m) => ({
+      ...m,
+      id: uid('msg'),
+      conversationId: copy.id,
+      // Never carry over in-flight states: the copy is a static snapshot.
+      status: m.status === 'pending' || m.status === 'streaming' ? 'stopped' : m.status,
+    }))
+    await db.transaction('rw', db.conversations, db.messages, async () => {
+      await db.conversations.add(copy)
+      if (copiedMessages.length) await db.messages.bulkAdd(copiedMessages)
+    })
+    set((s) => ({ conversations: sortConversations([copy, ...s.conversations]) }))
+    return copy
   },
 
   importConversations: async (items) => {

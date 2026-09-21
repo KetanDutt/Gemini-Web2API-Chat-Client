@@ -71,10 +71,13 @@ export const useConnection = create<ConnectionStore>()(
         }
       },
 
-      test: async () => {
+      test: async (opts) => {
         const settings = useSettings.getState()
         geminiWebApi.setConfig(selectApiConfig(settings))
-        set({ state: 'checking', lastCheckAt: Date.now() })
+        // Silent background polls must not flicker the status pill into
+        // "checking" — only user-initiated tests do.
+        if (opts?.silent) set({ lastCheckAt: Date.now() })
+        else set({ state: 'checking', lastCheckAt: Date.now() })
         const started = performance.now()
         try {
           const result = await geminiWebApi.testConnection(settings.defaultModel)

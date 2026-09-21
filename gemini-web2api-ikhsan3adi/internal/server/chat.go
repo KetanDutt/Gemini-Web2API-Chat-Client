@@ -123,6 +123,15 @@ func (a *App) handleChat(w http.ResponseWriter, r *http.Request) {
 			_ = writeSSEDone(w)
 		} else {
 			a.Logf("Chat stream error: %v", emitErr)
+			// Surface the failure to the client: emit an OpenAI-style error
+			// chunk before closing so stream consumers see a real error (and
+			// can retry) instead of a silently truncated answer.
+			_ = writeSSEData(w, map[string]any{
+				"error": map[string]any{
+					"message": fmt.Sprintf("upstream error: %v", emitErr),
+					"type":    "server_error",
+				},
+			})
 		}
 		return
 	}

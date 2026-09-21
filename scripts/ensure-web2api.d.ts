@@ -27,8 +27,11 @@ export interface EnsureOptions {
 }
 
 export const DEFAULT_PORT: number
+export const VENDORED_DIR_NAME: string
+export const EXTERNAL_DIR_NAME: string
 
 export function projectRoot(): string
+export function vendoredWeb2ApiDir(root?: string): string
 export function web2apiBinaryName(platform?: string): string
 export function parsePortFromUrl(raw: unknown): number | null
 export function resolvePort(options?: { port?: number; env?: Record<string, string | undefined> }): number

@@ -7,12 +7,12 @@ server. This document explains how the pieces fit together and why.
 
 ```
 ┌─────────────────────────────┐        ┌────────────────────────────────┐
-│  GlassGem UI                │        │  Gemini Web2API (external)     │
+│  GlassGem UI                │        │  Gemini Web2API                │
 │  React 19 + Vite 7 PWA      │        │  OpenAI-compatible server on   │
 │  or Electron shell          │        │  your machine (default :8081)  │
-│                             │        │                                │
-│  browser fetch              │        │  performs Gemini auth with     │
-│    │                        │        │  cookies GlassGem never sees   │
+│                             │        │  sources vendored in this repo │
+│  browser fetch              │        │  at gemini-web2api-ikhsan3adi/ │
+│    │                        │        │  and started automatically     │
 │    ├─ direct ───────────────┼────────┤► /v1/chat/completions          │
 │    │                        │        │  /v1/models                    │
 │    └─ local proxy (default) │        │                                │
@@ -21,7 +21,11 @@ server. This document explains how the pieces fit together and why.
 ```
 
 GlassGem never talks to Google. It only talks to the Web2API server you
-configure, either directly or through the built-in local proxy.
+configure, either directly or through the built-in local proxy. The Go source
+code of a compatible server ships inside this repository
+(`gemini-web2api-ikhsan3adi/`); the launcher scripts build a binary from it
+(or download a verified prebuilt one) and keep it running as a local daemon —
+see [BACKEND.md](./BACKEND.md).
 
 ## The three ways GlassGem runs
 
@@ -54,23 +58,26 @@ internet.
 ```
 src/
   components/
-    background/   ambient animated backdrop
-    chat/         composer, message list, message item, markdown, code blocks,
-                  model selector, welcome screen
-    dialogs/      settings, search (Ctrl+K), shortcuts, prompt library,
-                  onboarding, debug, delete confirm
-    layout/       top bar, logo, connection status, PWA prompt
-    sidebar/      conversation list + items
-    ui/           glass primitives (dialog, menu, switch, segmented, tooltip,
-                  fields, empty state…)
-  hooks/          theme, media queries, shortcuts, connection monitor,
-                  search, toast
-  layouts/        AppLayout (sidebar + chat + mobile drawer)
-  lib/            utils + image attachment helpers
-  services/       API client, capability model, errors, db, export/import
-  stores/         zustand stores: conversations, settings, connection,
-                  prompts, ui, streaming
-  types/          shared TypeScript types
+    background/     ambient animated backdrop
+    chat/           composer, message list, message item, markdown, code blocks,
+                    model selector, welcome screen
+    dialogs/        settings, search (Ctrl+K), shortcuts, prompt library,
+                    onboarding, debug, delete confirm — plus DialogHost, which
+                    lazy-loads every dialog on first open
+    layout/         top bar, logo, connection status, PWA prompt
+    sidebar/        conversation list + items
+    ui/             glass primitives (dialog, menu, switch, segmented, tooltip,
+                    fields, empty state…)
+    ErrorBoundary   last-resort crash screen with copyable diagnostics
+  hooks/            theme, media queries, shortcuts, connection monitor,
+                    search, toast
+  layouts/          AppLayout (sidebar + chat + mobile drawer)
+  lib/              utils + image attachment helpers
+  services/         API client, capability model, errors, db, export/import,
+                    composer drafts
+  stores/           zustand stores: conversations, settings, connection,
+                    prompts, ui, streaming
+  types/            shared TypeScript types
 ```
 
 ### State management
@@ -84,9 +91,14 @@ src/
   and sidebar never re-render on token updates. Notifications are coalesced to
   one per animation frame.
 - **`connectionStore`** tracks connection state, discovered models, request
-  traces (debug panel) and **capabilities** (below).
+  traces (debug panel) and **capabilities** (below). Background connection
+  polls run with `{ silent: true }` so they never flicker the status pill
+  into *checking* — only user-initiated tests do.
 - **`settingsStore`** / **`uiStore`** / **`promptStore`** are straightforward;
   settings persist to `localStorage` via zustand `persist`.
+- **Composer drafts** live in `services/drafts.ts`: text per conversation is
+  debounce-persisted to `localStorage` (capped, reload-safe), attachments stay
+  in a runtime map (too big for storage quotas).
 
 ### Capability detection
 
@@ -121,14 +133,20 @@ upstream connection.
 `services/errors.ts` normalises every failure (HTTP status, network, proxy,
 timeout, abort, malformed JSON) into an `ApiError` with a human title, message
 and actionable hint. Message bubbles show the error with **Retry** and
-**Open Settings** actions; nothing is ever a dead end.
+**Open Settings** actions; nothing is ever a dead end. Mid-stream upstream
+failures are surfaced too: the bundled backend emits an OpenAI-style error
+chunk instead of silently truncating, and the client treats it as a real error
+(preserving the partial text for retry). As a final safety net, a top-level
+`ErrorBoundary` turns render crashes into a recovery screen with copyable
+diagnostics instead of a white page.
 
 ### Persistence
 
 - **IndexedDB** (database `glassgem`, via Dexie): conversations, messages,
   prompts. Message ordering uses a `[conversationId+order]` compound index.
 - **localStorage**: settings, sidebar state, onboarding flag, detected
-  capabilities (versioned zustand persist keys, all prefixed `glassgem.`).
+  capabilities, composer drafts (versioned zustand persist keys, all prefixed
+  `glassgem.`).
 - Image attachments are stored as downscaled `data:` URLs inside the message
   record (max 1568px on the longest side) — see `src/lib/images.ts`.
 
@@ -147,6 +165,15 @@ native menu are included.
 explicitly never intercepts `/web2api/*` or `/v1/*`. Updates use
 `registerType: 'prompt'`; `PwaPrompt` shows the reload banner and the install
 offer. The PWA is not mounted inside the Electron shell.
+
+### Bundle strategy
+
+Top-level dialogs (settings, search, shortcuts, prompt library, onboarding,
+debug, delete confirm) plus the PWA prompt are **lazy chunks**: `DialogHost`
+only requests a dialog's chunk the first time it is opened, then keeps it
+mounted so close animations and state survive. The initial bundle therefore
+stays lean; markdown/highlight.js and Motion are manual chunks shared by the
+rest.
 
 ## Design system
 

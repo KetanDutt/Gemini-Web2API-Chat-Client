@@ -10,6 +10,7 @@ what that means and the hardening behind it.
 | --- | --- | --- |
 | Conversations, messages, attachments | IndexedDB (`glassgem`) in your browser profile | Never synced anywhere |
 | Settings (incl. API key) | `localStorage` (`glassgem.*` keys) | Anyone with OS access to the profile can read it; *Settings → Privacy → Clear key* removes the key |
+| Composer drafts (unsent text) | `localStorage` (`glassgem.drafts`) | Text only — attachments are runtime-only by design |
 | Gemini auth cookies | **Only** inside the Web2API server process | GlassGem never requests, sees or stores them |
 | Request traces (debug panel) | Memory only | Never include API keys or cookies |
 

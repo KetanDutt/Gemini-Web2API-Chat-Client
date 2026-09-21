@@ -83,3 +83,25 @@ func TestResolveEnhanced(t *testing.T) {
 		t.Errorf("Expected extra fields {31:2, 80:3}, got %v", res.Extra)
 	}
 }
+
+func TestSortedModelNames(t *testing.T) {
+	names := SortedModelNames()
+	if len(names) != len(MODELS) {
+		t.Fatalf("SortedModelNames() returned %d names, want %d", len(names), len(MODELS))
+	}
+	seen := make(map[string]bool, len(names))
+	for i, name := range names {
+		if i > 0 && names[i-1] > name {
+			t.Errorf("SortedModelNames() not sorted: %q comes before %q", names[i-1], name)
+		}
+		if seen[name] {
+			t.Errorf("SortedModelNames() returned duplicate %q", name)
+		}
+		seen[name] = true
+	}
+	for name := range MODELS {
+		if !seen[name] {
+			t.Errorf("SortedModelNames() missing %q", name)
+		}
+	}
+}

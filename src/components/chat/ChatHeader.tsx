@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { ChevronRight, Download, Eraser, FileJson, FileText, FileType, MoreHorizontal, Pencil, ScrollText, Star, Trash2 } from 'lucide-react'
+import { ChevronRight, CopyPlus, Download, Eraser, FileJson, FileText, FileType, MoreHorizontal, Pencil, ScrollText, Star, Trash2 } from 'lucide-react'
 import { useConversations } from '@/stores/conversationStore'
 import { useUI } from '@/stores/uiStore'
 import { ModelSelector } from './ModelSelector'
@@ -17,6 +17,7 @@ export function ChatHeader({ scrolled = false }: { scrolled?: boolean }) {
   const setConversationModel = useConversations((s) => s.setConversationModel)
   const toggleFavorite = useConversations((s) => s.toggleFavorite)
   const clearConversation = useConversations((s) => s.clearConversation)
+  const duplicateConversation = useConversations((s) => s.duplicateConversation)
   const getConversationMessages = useConversations((s) => s.getConversationMessages)
   const setSystemPrompt = useConversations((s) => s.setSystemPrompt)
   const renameConversation = useConversations((s) => s.renameConversation)
@@ -148,6 +149,15 @@ export function ChatHeader({ scrolled = false }: { scrolled?: boolean }) {
                   </MenuItem>
                 </MenuSubContent>
               </MenuSub>
+              <MenuItem
+                icon={<CopyPlus size={14} />}
+                onSelect={async () => {
+                  const copy = await duplicateConversation(conv.id)
+                  if (copy) toast.success('Conversation duplicated', copy.title)
+                }}
+              >
+                Duplicate
+              </MenuItem>
               <MenuSeparator />
               <MenuItem icon={<Eraser size={14} />} onSelect={() => setConfirmClear(true)}>
                 Clear messages

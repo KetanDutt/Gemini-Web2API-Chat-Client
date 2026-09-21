@@ -22,11 +22,13 @@ const GROUPS = [
       ['Send message', '↵'],
       ['Send (always)', 'Mod+↵'],
       ['New line', '⇧+↵'],
+      ['Paste / drag images', 'Clipboard or drop'],
     ],
   },
   {
     title: 'Conversations',
     items: [
+      ['Stop generating', 'Esc'],
       ['Rename', 'Double-click title'],
     ],
   },

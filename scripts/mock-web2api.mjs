@@ -100,6 +100,14 @@ function replyFor(messages) {
   }
   if (lower.includes('error-500')) return { error: 500 }
   if (lower.includes('error-429')) return { error: 429 }
+  if (lower.includes('error-stream')) {
+    // Streams a partial answer, then fails mid-stream with an OpenAI-style
+    // error chunk — mirrors how the real backend surfaces upstream failures.
+    return {
+      text: 'This answer starts normally, but the upstream stream is about to fail on purpose so you can see how GlassGem surfaces mid-stream errors… ',
+      streamError: true,
+    }
+  }
   if (lower.includes('slow')) return { text: SAMPLE, slow: true }
   if (lower.includes('short')) return { text: 'Sure — here is a short answer. ✨' }
   if (lower.includes('docker') || lower.includes('network')) return { text: SAMPLE }
@@ -173,6 +181,11 @@ const server = http.createServer(async (req, res) => {
       const tick = () => {
         if (closed) return
         if (i >= parts.length) {
+          if (reply.streamError) {
+            // Mid-stream failure: error chunk, then close without [DONE].
+            send({ error: { message: 'upstream error: mock stream failure', type: 'server_error' } })
+            return res.end()
+          }
           send({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage })
           res.write('data: [DONE]\n\n')
           return res.end()

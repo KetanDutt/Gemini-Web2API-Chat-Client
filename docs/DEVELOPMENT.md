@@ -36,8 +36,11 @@ share the same environment checker (`scripts/check-env.bat [clean] [desktop]`).
 
 | Command | Purpose |
 | --- | --- |
-| `npm run dev` | Dev server with HMR on <http://localhost:5173> |
+| `npm run dev` | Dev server with HMR on <http://localhost:5173> (auto-starts Web2API) |
 | `npm run mock` | Mock Web2API on port 8081 (sample answers, error triggers) |
+| `npm run web2api` | Ensure/start the real Web2API daemon from the vendored sources |
+| `npm run web2api:foreground` | Same, but blocking in the current terminal (debug/systemd style) |
+| `npm run web2api:stop` | Stop the background Web2API daemon |
 | `npm run typecheck` | Strict TypeScript check (`tsc -b`) |
 | `npm test` | Unit tests (Node built-in runner, zero extra dependencies) |
 | `npm run build` | Production web build into `dist/` |
@@ -65,6 +68,7 @@ non-streaming, multimodal message parts). Special inputs for testing:
 | `elicit` | Answer followed by an `<ElicitationsGroup>` block (follow-up chips) |
 | `error-500` | HTTP 500 |
 | `error-429` | HTTP 429 |
+| `error-stream` | Partial stream → OpenAI-style error chunk (tests mid-stream failures) |
 | an image attachment | Acknowledges the image |
 
 Run it on another port with `node scripts/mock-web2api.mjs 9099`, then point
@@ -82,7 +86,12 @@ npm test
 - `test/register.mjs` + `test/loader.mjs` teach Node about the `@/` alias and
   extensionless TS imports (mirroring the Vite/tsconfig setup).
 - Covered today: title/preview/filename utilities, error normalisation, the
-  capability decision helpers, and the export/import validators.
+  capability decision helpers, elicitation parsing, the export/import
+  validators, composer drafts, and the Web2API launcher (vendored-directory
+  discovery, config generation, port resolution, daemon lifecycle, release
+  downloads against a local mirror).
+- The vendored Go backend has its own test suite: run `go test ./...` inside
+  `gemini-web2api-ikhsan3adi/` when a Go toolchain is available.
 
 Add new tests as `test/*.test.ts`. Keep them dependency-free and focused on
 pure logic (services/lib); UI behaviour is verified manually against the mock
@@ -92,14 +101,38 @@ server.
 
 | Variable | Used by | Purpose |
 | --- | --- | --- |
-| `GLASSGEM_WEB2API_URL` | proxies, `run.bat` | Default upstream Web2API origin (default `http://127.0.0.1:8081`) |
+| `GLASSGEM_WEB2API_URL` | proxies, launchers | Default upstream Web2API origin (default `http://127.0.0.1:8081`) |
+| `GLASSGEM_WEB2API_PORT` | launchers | Explicit Web2API port (wins over the URL port) |
+| `GLASSGEM_SKIP_AUTO_WEB2API` | launchers, Vite plugin | `1` = never auto-start the server (e.g. Docker setups) |
+| `WEB2API_DIR` | launchers | Explicit backend checkout directory (strict) |
+| `WEB2API_RELEASE_TAG` | launcher | Pin a prebuilt release instead of "latest" |
+| `WEB2API_NO_DOWNLOAD` / `WEB2API_NO_CLONE` | launcher | `1` disables the prebuilt download / git clone fallbacks |
 | `GLASSGEM_DEV_SERVER_URL` | Electron | Dev server URL for `desktop:dev` |
 | `GLASSGEM_DESKTOP_PORT` | Electron | Loopback port of the packaged app (default 17384) |
 | `MOCK_API_KEY` | mock server | API key the mock accepts (default `sk-gemini`) |
 | `ELECTRON_MIRROR` | Electron install | Alternate download host for the Electron binary |
+| `GG_INIT` / `GG_PKG_MGR` | `setup-linux.sh` | Test hooks: force init (`systemd`/`openrc`) or package-manager detection — used by the shell test harness |
+| `GG_LIB_ONLY` | `setup-linux.sh` | Source the script without executing the action (used to unit-test the render helpers) |
 
 Copy `.env.example` to `.env` if you want a persistent
 `GLASSGEM_WEB2API_URL`; `.env` is gitignored — never commit it.
+
+### Shell scripts (portability rules)
+
+All `.sh` files are **POSIX sh on purpose** (`#!/bin/sh`, no `pipefail`, no
+`BASH_SOURCE`, no `[[ ]]`, `sed` basic-regex only): they must run under bash,
+dash **and BusyBox ash**, so Alpine Linux needs no bash installation. When
+editing them, verify with `sh -n` AND `bash -n` (CI enforces this; dash is
+`/bin/sh` on Ubuntu). The Go build in `ensure-web2api.mjs` and
+`scripts/start-web2api.sh` forces `CGO_ENABLED=0` so the produced binary is
+static and runs on glibc and musl systems alike.
+
+Testing `setup-linux.sh` without a live init system: stub `systemctl` /
+`rc-service` / `rc-update` in a `/usr/local/bin`-style PATH entry and set
+`GG_INIT` to `systemd` or `openrc` — the script then exercises the full
+install/status/uninstall flow harmlessly (container images ship neither
+init system). Render helpers can also be called directly after sourcing with
+`GG_LIB_ONLY=1`.
 
 ## Desktop development
 
@@ -114,9 +147,12 @@ first. `desktop.bat dev|build|portable|pack|clean` wraps the same commands.
 `.github/workflows/windows-desktop.yml`:
 
 1. **verify** (ubuntu, every push + PR): `npm ci` (Electron binary skipped) →
+   POSIX `sh -n`/`bash -n` parse of every `.sh` →
    type-check → unit tests → production build.
-2. **build-windows** (tags + manual dispatch, after verify): full `npm ci` +
-   `npm run desktop:build`, uploads `release/` artifacts.
+2. **backend-tests** (ubuntu, every push + PR): `go vet`, `go test ./...` and
+   `go build` against the vendored `gemini-web2api-ikhsan3adi/` module.
+3. **build-windows** (tags + manual dispatch, after both verify jobs): full
+   `npm ci` + `npm run desktop:build`, uploads `release/` artifacts.
 
 ## Release checklist
 

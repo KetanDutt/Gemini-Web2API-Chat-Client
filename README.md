@@ -36,9 +36,9 @@ Design language: Apple-inspired *Liquid Glass* — translucent layered surfaces,
 
 | Requirement | Notes |
 | --- | --- |
-| **Windows 11** (or macOS / Linux) | The browser client runs anywhere Node.js works; the native desktop build targets Windows 10/11. |
+| **Windows 11** (or macOS / Linux / Alpine Linux) | The web client runs anywhere Node.js works — verified on Windows 10/11 (.bat launchers), glibc Linux distros, and musl Alpine Linux (POSIX-`sh` scripts, no bash needed). The native desktop build targets Windows 10/11. |
 | **Node.js 20 or newer** | Needed to develop or build GlassGem. The finished Windows installer includes its own runtime. Download the LTS installer from <https://nodejs.org>. |
-| **Gemini Web2API** | Running locally, e.g. at `http://127.0.0.1:8081`. GlassGem does not bundle the API server. |
+| **Gemini Web2API** | **Bundled.** The backend sources ship inside this repo (`gemini-web2api-ikhsan3adi/`) and GlassGem builds/downloads and starts the binary automatically — see §3. |
 | A modern browser | Needed for the web/PWA client. A browser is not needed after installing the native Windows app. |
 
 ## 2. Installation
@@ -53,17 +53,19 @@ This downloads the dependencies into `node_modules` (only needed once, or after 
 
 ## 3. Starting Web2API
 
-GlassGem features **automated Web2API management**: whenever you start GlassGem (via `./run.sh`, `run.bat`, `run-desktop.bat`, or `npm run dev`), it automatically checks if Gemini Web2API is listening on port 8081.
+GlassGem **bundles the backend**: the Go sources of
+[gemini-web2api](https://github.com/ikhsan3adi/gemini-web2api) (by [@ikhsan3adi](https://github.com/ikhsan3adi)) are vendored in [`gemini-web2api-ikhsan3adi/`](./gemini-web2api-ikhsan3adi) and are used automatically — you never need to clone or install anything separately. Full details live in [docs/BACKEND.md](./docs/BACKEND.md).
 
-If Web2API is not running, GlassGem automatically, in this order:
-1. Reuses an existing `gemini-web2api` checkout (next to the project, next to its parent, or in your home folder), or checks it out from [https://github.com/ikhsan3adi/gemini-web2api](https://github.com/ikhsan3adi/gemini-web2api) when git is available.
-2. Uses an existing `gemini-web2api` binary, builds one with Go when a toolchain is installed, or downloads the official prebuilt release for your OS/CPU (verified by SHA-256) — so neither git nor Go is strictly required.
-3. Creates a default `config.json` (API key `sk-gemini`) inside the checkout when none exists; your own config is never touched.
+Whenever you start GlassGem (via `./run.sh`, `run.bat`, `run-desktop.bat`, or `npm run dev`), it automatically checks if Gemini Web2API is listening on port 8081. If not, GlassGem automatically, in this order:
+
+1. **Uses the bundled sources** at `gemini-web2api-ikhsan3adi/` (or an existing `gemini-web2api` checkout next to the project / in your home folder, or a `WEB2API_DIR` you set). Only if nothing is found does it fall back to checking the sources out from GitHub.
+2. Uses an existing `gemini-web2api` binary, builds one with Go when a toolchain is installed (static `CGO_ENABLED=0` build, so the binary also runs on musl/Alpine systems), or downloads the official prebuilt release for your OS/CPU (verified by SHA-256) — so neither git nor Go is strictly required.
+3. Creates a default `config.json` (API key `sk-gemini`) inside the backend directory when none exists; your own config is never touched.
 4. Starts the server as a background daemon on port `8081` and waits until it answers. Its output goes to `.web2api.log`; only when no real server can be provided does GlassGem clearly warn and start the built-in mock instead (sample answers only, never real Gemini).
 
-The background server keeps running after GlassGem exits, and the next start reuses it. To stop it: `run.bat stop` · `run-desktop.bat stop` · `./run.sh stop` (or `node scripts/stop-web2api.mjs`). Set `GLASSGEM_SKIP_AUTO_WEB2API=1` to disable the auto-start entirely (for example when you run Web2API in Docker), or point GlassGem at another machine by setting `GLASSGEM_WEB2API_URL` (its port is honored when GlassGem starts the server itself).
+The background server keeps running after GlassGem exits, and the next start reuses it. To stop it: `npm run web2api:stop` · `run.bat stop` · `run-desktop.bat stop` · `./run.sh stop`. Handy extras: `npm run web2api` (ensure + start the daemon by hand) and `npm run web2api:foreground` (blocking, for debugging). Set `GLASSGEM_SKIP_AUTO_WEB2API=1` to disable the auto-start entirely (for example when you run Web2API in Docker — see [docs/BACKEND.md](./docs/BACKEND.md#docker-alternative)), or point GlassGem at another machine by setting `GLASSGEM_WEB2API_URL` (its port is honored when GlassGem starts the server itself).
 
-You can also start it manually or as a system service with `sudo ./setup-linux.sh`. When it is running you should be able to open this in a browser:
+You can also start it manually or as a system service (systemd **and** OpenRC/Alpine) with `sudo sh setup-linux.sh`. When it is running you should be able to open this in a browser:
 
 ```
 http://127.0.0.1:8081/v1/models
@@ -101,7 +103,7 @@ Double-click **`run.bat`**. It checks Node.js (offers to install it via winget i
 | `build.bat clean` | Reinstall dependencies before building |
 | `build.bat desktop` | Build the native Windows installer and portable app |
 
-### Linux / macOS
+### Linux / macOS / Alpine
 
 Run **`./run.sh`** from your terminal. It verifies the environment, handles dependencies, checks Web2API, and starts the dev server:
 
@@ -114,31 +116,38 @@ Run **`./run.sh`** from your terminal. It verifies the environment, handles depe
 | `./build.sh` | Type-check + production build into `dist/` |
 | `./build.sh preview` | Build, then start local preview server |
 
-Every script stops with a plain-language explanation and suggested fix when something goes wrong (missing/old Node.js, failed `npm install`, type errors, port conflicts…). Add `/?` or `--help` to see the options.
+All shell scripts are written in **POSIX sh** and run under bash, dash and BusyBox ash alike — so **Alpine Linux works out of the box, no bash installation needed** (`sh run.sh` just works). Every script stops with a plain-language explanation and suggested fix when something goes wrong (missing/old Node.js, failed `npm install`, type errors, port conflicts…). Add `/?` or `--help` to see the options.
 
 ### Linux Services (Auto-Start on System Restart)
 
-To register both **Gemini Web2API** and **GlassGem** as system services that start automatically when your Linux machine boots or restarts:
+To register both **Gemini Web2API** and **GlassGem** as system services that start automatically when your machine boots or restarts:
 
 ```bash
-sudo ./setup-linux.sh
+sudo sh setup-linux.sh
+```
+
+This works on **systemd distros** (Debian/Ubuntu, Fedora, Arch, openSUSE, …) **and on OpenRC systems such as Alpine Linux and Gentoo** — the init system is detected automatically. On Alpine, setup is a true one-liner since the script can install missing tools itself:
+
+```sh
+# Alpine: install runs out of the box (apk, BusyBox ash, OpenRC)
+sudo sh setup-linux.sh            # offers to `apk add` node/npm/git/curl/go if missing
 ```
 
 This setup script:
-- Verifies system requirements (systemd, Node.js 20+, npm).
-- Locates or clones `gemini-web2api` and builds the Go binary or configures graceful mock/Python fallback.
+- Verifies requirements and — when tools are missing — offers to install them via the detected package manager (`apk`, `apt`, `dnf`, `yum`, `zypper` or `pacman`).
+- Uses the **bundled `gemini-web2api-ikhsan3adi/` backend sources** first (clones from GitHub only when absent) and builds a **static `CGO_ENABLED=0` binary** that runs on glibc and musl (Alpine) alike, or falls back to the prebuilt release / graceful mock/Python fallback.
 - Detects and clears any existing port conflicts on ports `5173` and `8081`.
-- Creates `/etc/systemd/system/gemini-web2api.service` and `/etc/systemd/system/glassgem.service`.
-- Enables both services so they start automatically on boot/restart (`multi-user.target`).
+- Creates the service definitions — systemd units (`/etc/systemd/system/`) **or** OpenRC scripts (`/etc/init.d/`) with matching environment files (`/etc/default/` on systemd, `/etc/conf.d/` on OpenRC) — and registers them to start on boot.
+- Enables both services so they start automatically on boot/restart.
 - Verifies health via HTTP checks and automatically diagnoses logs if any service fails.
 
-Service management:
+Service management (works the same on systemd and OpenRC):
 ```bash
-sudo ./setup-linux.sh --status     # View health and running status
-sudo ./setup-linux.sh --restart    # Restart both services
-sudo ./setup-linux.sh --logs       # View live logs
-sudo ./setup-linux.sh --stop       # Stop services
-sudo ./setup-linux.sh --uninstall  # Remove services from systemd
+sudo sh setup-linux.sh --status     # View health and running status
+sudo sh setup-linux.sh --restart    # Restart both services
+sudo sh setup-linux.sh --logs       # View live logs
+sudo sh setup-linux.sh --stop       # Stop services
+sudo sh setup-linux.sh --uninstall  # Remove the services
 ```
 
 ### Manual
@@ -214,7 +223,7 @@ Each starts as *Unknown*, becomes *Supported* after a successful observed reques
 | Symptom | What it means | Fix |
 | --- | --- | --- |
 | **Unable to connect to Gemini Web2API** / *Web2API offline* | Nothing is listening at the Base URL. | Start Web2API (`run.bat` does this automatically). Check `.web2api.log` in the project folder. Confirm the port (8081 by default). |
-| **Mock answers only** (startup warns about the *MOCK server*) | No real server binary, Go toolchain, or release download was available. | Allow the prebuilt download from github.com, or install Go so GlassGem can build the server. The mock is only for trying the UI. |
+| **Mock answers only** (startup warns about the *MOCK server*) | No real server binary, Go toolchain, or release download was available, even though the backend sources are bundled. | Install [Go](https://go.dev) 1.22+ so GlassGem can build the bundled server, or allow the prebuilt download from github.com. See [docs/BACKEND.md](./docs/BACKEND.md). The mock is only for trying the UI. |
 | **Web2API keeps running after GlassGem exits** | The server is a background daemon by design. | This is normal — the next start reuses it. Stop it with `run.bat stop` / `./run.sh stop`. |
 | **API key rejected (401)** | The key doesn't match the server. | Settings → API → enter the key configured in Web2API (default `sk-gemini`). |
 | **Access denied (403)** | The server refused the request. | Gemini session/cookies on the Web2API side may have expired — re-login there. |
@@ -282,18 +291,23 @@ Nothing is uploaded anywhere. Clearing site data in the browser erases it — ex
 
 ## 12. Development
 
-Deeper documentation lives in [`docs/`](./docs): [architecture](./docs/ARCHITECTURE.md) · [development guide](./docs/DEVELOPMENT.md) · [security & privacy](./docs/SECURITY.md).
+Deeper documentation lives in [`docs/`](./docs): [architecture](./docs/ARCHITECTURE.md) · [development guide](./docs/DEVELOPMENT.md) · [backend integration](./docs/BACKEND.md) · [security & privacy](./docs/SECURITY.md).
 
 ```
-docs/             architecture, development guide, security notes
+docs/             architecture, development guide, backend notes, security notes
+gemini-web2api-ikhsan3adi/
+                  vendored Go backend (OpenAI-compatible Web2API server,
+                  started automatically by the launchers)
 src/
   components/
-    background/   ambient animated background
-    chat/         header, message list, message item, markdown, code blocks, composer, model selector, welcome
-    dialogs/      settings, search (Ctrl+K), shortcuts, prompt library, onboarding, debug, delete confirm
-    layout/       top bar, logo, connection status, PWA prompt
-    sidebar/      conversation list + items
-    ui/           glass primitives (dialog, menu, switch, segmented, tooltip, fields, empty state…)
+    background/     ambient animated background
+    chat/           header, message list, message item, markdown, code blocks, composer, model selector, welcome
+    dialogs/        settings, search (Ctrl+K), shortcuts, prompt library, onboarding, debug, delete confirm,
+                    DialogHost (lazy-loads each dialog on first open)
+    layout/         top bar, logo, connection status, PWA prompt
+    sidebar/        conversation list + items
+    ui/             glass primitives (dialog, menu, switch, segmented, tooltip, fields, empty state…)
+    ErrorBoundary.tsx  crash recovery screen with copyable diagnostics
   hooks/          theme, media queries, shortcuts, connection monitor, search, toast
   layouts/        AppLayout (sidebar + chat + mobile drawer)
   lib/            utils (title generation, formatting, clipboard, download…)
@@ -302,6 +316,7 @@ src/
     capabilities.ts   capability model + decision helpers
     errors.ts         HTTP/network → human-friendly ApiError
     db.ts             Dexie schema
+    drafts.ts         per-conversation composer drafts (text persisted, attachments runtime)
     exportImport.ts   serializers + strict import validation
   stores/         zustand stores: conversations, settings, connection, prompts, ui, streaming
   types/          shared TypeScript types
@@ -312,14 +327,20 @@ scripts/
   web2api-proxy.ts  local CORS proxy (Vite plugin)
   desktop-dev.mjs   cross-platform Vite + Electron development launcher
   mock-web2api.mjs  mock server for UI development
-  ensure-web2api.mjs  Web2API auto-installer: checkout/build/download + daemon runner
+  ensure-web2api.mjs  Web2API auto-installer: vendored checkout/build/download + daemon runner
   stop-web2api.mjs  stops the background Web2API daemon
   check-env.bat     shared Windows environment/dependency check used by the launchers
+  check-env.sh      POSIX-sh environment/dependency check (Linux/macOS/Alpine)
+  start-web2api.sh  Web2API service entrypoint used by the systemd/OpenRC services
+  start-glassgem.sh GlassGem service entrypoint used by the systemd/OpenRC services
 resources/
   icon.ico        Windows installer and executable icon
 run.bat           starts the web (browser/PWA) version - no Electron needed
 run-desktop.bat   starts the native Windows app (Electron) with hot reload
 desktop.bat       Windows desktop dev/build/portable commands
+run.sh            starts the web version on Linux/macOS/Alpine (POSIX sh)
+build.sh          production build helper (POSIX sh)
+setup-linux.sh    one-click systemd/OpenRC service installer (POSIX sh)
 ```
 
 Useful commands:
@@ -330,6 +351,8 @@ Useful commands:
 | `npm run typecheck` | Strict TypeScript check |
 | `npm test` | Unit tests (Node's built-in runner — zero extra dependencies) |
 | `npm run mock` | Mock Web2API on port 8081 |
+| `npm run web2api` / `web2api:stop` | Start the Web2API daemon by hand / stop it |
+| `npm run web2api:foreground` | Run Web2API blocking in this terminal |
 | `npm run build` | Production web build into `dist/` |
 | `npm run preview` | Serve `dist/` on <http://localhost:4173> (proxy included) |
 | `npm run desktop:dev` | Run the native Electron shell with Vite HMR |
@@ -338,7 +361,7 @@ Useful commands:
 
 Stack: React 19 · TypeScript · Vite 7 · Tailwind CSS 4 · Radix UI primitives · Zustand · Dexie · react-markdown + remark-gfm + highlight.js · Motion · Sonner · Lucide.
 
-Performance notes: streamed tokens are written to a dedicated store that only re-renders the single message being streamed (rAF-throttled); message components are memoised; search is debounced and scans IndexedDB in the background; the sidebar list and message list never re-render on token updates.
+Performance notes: streamed tokens are written to a dedicated store that only re-renders the single message being streamed (rAF-throttled); message components are memoised; search is debounced and scans IndexedDB in the background; the sidebar list and message list never re-render on token updates; every dialog is a lazy chunk fetched only on first open, keeping the initial bundle small.
 
 ## 13. Production build
 
@@ -356,7 +379,8 @@ A repeatable GitHub Actions workflow is included at `.github/workflows/windows-d
 ## 14. Features
 
 - Gemini chat with **streaming** (automatic fallback to non-streaming if the server rejects `stream: true`)
-- Multiple conversations, grouped Today / Yesterday / Previous 7 days / Older, with **pin** and **favorite**
+- **Bundled Web2API backend** — the server sources ship in the repo and are built/downloaded and started automatically; works offline once set up
+- Multiple conversations, grouped Today / Yesterday / Previous 7 days / Older, with **pin**, **favorite** and **duplicate**
 - Instant local **search** across titles and message content, with highlighted matches (`Ctrl+K`)
 - Rename (double-click or menu), delete (confirmed), clear, export per conversation
 - Automatic local title from the first message (no extra API call)
@@ -365,15 +389,17 @@ A repeatable GitHub Actions workflow is included at `.github/workflows/windows-d
 - Message actions: copy, copy as Markdown/plain text, regenerate, export, report error, delete; **edit & resend** for user messages
 - **Regenerate** keeps previous answers: *Response 1 / 3* with ◀ ▶ controls
 - **Follow-up suggestions** — `<ElicitationsGroup>` / `<Elicitation>` markup appended by some servers is parsed, stripped from the text, and rendered as clickable chips that send the suggested prompt
-- **Stop** generation (AbortController → proxy → upstream)
+- **Stop** generation (button, `Esc`, AbortController → proxy → upstream)
 - Timestamps, per-message model, **token usage** (click for prompt/completion/total), optional response time
-- **Image attachments** — attach up to 4 images per message with thumbnails and drag-free picking; large images are downscaled locally before they are stored or sent (opt-in, see Known limitations)
+- **Image attachments** — attach up to 4 images per message by picking, **pasting from the clipboard**, or **dragging & dropping** onto the composer; large images are downscaled locally before they are stored or sent (opt-in, see Known limitations)
+- **Crash-proof composer** — per-conversation drafts survive reloads (text persisted locally, attachments kept in memory)
 - Per-conversation **system instructions** and optional default system prompt
 - Optional `temperature` / `top_p` / `max_tokens` — off by default, auto-disabled if the server rejects them
 - **Prompt library** with categories, favorites, create/edit/delete, one-click insert
 - **Settings**: General (theme, density, reduced motion, debug panel) · API · Chat · Prompts · Privacy · Data · About
 - System / Light / Dark themes, each designed on its own terms; `prefers-reduced-motion` respected
-- Elegant error handling for 400/401/403/404/429/5xx, network, proxy, invalid JSON, timeout, abort
+- Elegant error handling for 400/401/403/404/429/5xx, network, proxy, invalid JSON, timeout, abort, and even silently truncated streams
+- A global **error boundary**: unexpected UI errors show a recovery screen with one-click reload and copyable diagnostics — never a white page
 - Responsive: full sidebar on desktop, collapsible on tablet, slide-over drawer on mobile
 - Accessible: semantic roles, ARIA labels, focus rings, keyboard navigation everywhere
 - Installable **PWA**
@@ -392,7 +418,8 @@ A repeatable GitHub Actions workflow is included at `.github/workflows/windows-d
 | `Ctrl+/` | Focus composer |
 | `Ctrl+Shift+/` | Shortcut help |
 | `Enter` | Send (`Shift+Enter` = newline; `Ctrl+Enter` always sends) |
-| `Esc` | Close dialog / drawer / cancel edit |
+| `Ctrl+V` / drag & drop | Attach an image from the clipboard / files (when image input is enabled) |
+| `Esc` | Close dialog / drawer / cancel edit · otherwise **stop generating** |
 
 On macOS use `⌘` instead of `Ctrl`.
 
@@ -406,11 +433,14 @@ These come from the Web2API side, and GlassGem is deliberately conservative abou
 - **Token usage / latency** — shown only when the server reports `usage`.
 - **AI-generated titles** — not implemented on purpose (titles are derived locally to avoid extra Gemini requests).
 - **Model list** — depends on `GET /v1/models`; otherwise type model IDs manually.
+- **`gemini-3.1-pro` routing** — without a Google account cookie the backend answers with Flash instead (this comes from the Web2API side). To get real Pro routing, configure a cookie file for the backend — see [docs/BACKEND.md](./docs/BACKEND.md#the-backend-in-60-seconds).
 
 ---
 
 ## License
 
 GlassGem is released under the [MIT License](./LICENSE).
+
+The backend sources in [`gemini-web2api-ikhsan3adi/`](./gemini-web2api-ikhsan3adi) are by [@ikhsan3adi](https://github.com/ikhsan3adi) and distributed under their own [MIT License](./gemini-web2api-ikhsan3adi/LICENSE); see [docs/BACKEND.md](./docs/BACKEND.md) for how GlassGem uses and patches them.
 
 Built as a local companion for Gemini Web2API. GlassGem is not affiliated with Google.
