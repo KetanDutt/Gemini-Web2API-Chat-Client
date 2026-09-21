@@ -19,6 +19,9 @@ import {
   ensureWeb2Api,
   ensureWeb2ApiConfig,
   ensurePrebuiltBinary,
+  vendoredWeb2ApiDir,
+  VENDORED_DIR_NAME,
+  EXTERNAL_DIR_NAME,
 } from '../scripts/ensure-web2api.mjs'
 
 test('isServerResponding: returns false for unreachable ports', async () => {
@@ -113,6 +116,44 @@ test('findWeb2ApiDir: an explicit WEB2API_DIR wins strictly', () => {
     if (previous === undefined) delete process.env.WEB2API_DIR
     else process.env.WEB2API_DIR = previous
     rmSync(scratch, { recursive: true, force: true })
+  }
+})
+
+test('findWeb2ApiDir: prefers the vendored backend over legacy checkouts', () => {
+  const scratch = mkdtempSync(path.join(os.tmpdir(), 'gg-web2api-vendored-'))
+  try {
+    // Both trees present -> the vendored gemini-web2api-ikhsan3adi wins.
+    const vendored = path.join(scratch, VENDORED_DIR_NAME)
+    const legacy = path.join(scratch, EXTERNAL_DIR_NAME)
+    mkdirSync(vendored, { recursive: true })
+    mkdirSync(legacy, { recursive: true })
+    writeFileSync(path.join(vendored, 'main.go'), 'package main\n')
+    writeFileSync(path.join(legacy, 'main.go'), 'package main\n')
+
+    assert.equal(vendoredWeb2ApiDir(scratch), path.join(scratch, 'gemini-web2api-ikhsan3adi'))
+    assert.equal(findWeb2ApiDir(scratch), vendored)
+
+    // Without the vendored tree, the legacy checkout is still honored.
+    rmSync(vendored, { recursive: true, force: true })
+    assert.equal(findWeb2ApiDir(scratch), legacy)
+  } finally {
+    rmSync(scratch, { recursive: true, force: true })
+  }
+})
+
+test('findWeb2ApiDir: discovers the vendored backend bundled with this repo', () => {
+  // The repository ships gemini-web2api-ikhsan3adi/ with Go sources: the
+  // launcher must pick it up without any cloning or downloads.
+  const root = projectRoot()
+  const previous = process.env.WEB2API_DIR
+  delete process.env.WEB2API_DIR
+  try {
+    const dir = findWeb2ApiDir(root)
+    if (existsSync(path.join(root, VENDORED_DIR_NAME, 'main.go'))) {
+      assert.equal(dir, vendoredWeb2ApiDir(root))
+    }
+  } finally {
+    if (previous !== undefined) process.env.WEB2API_DIR = previous
   }
 })
 

@@ -31,6 +31,16 @@ jobs:
         env:
           ELECTRON_SKIP_BINARY_DOWNLOAD: '1'
 
+      - name: Shell script sanity (POSIX sh + bash)
+        # sh on Ubuntu is dash: a strict POSIX parse catches bashisms that
+        # would break Alpine's BusyBox ash.
+        run: |
+          set -e
+          for f in $(git ls-files '*.sh'); do
+            sh -n "$f"
+            bash -n "$f"
+          done
+
       - name: Type-check
         run: npm run typecheck
 
@@ -40,11 +50,37 @@ jobs:
       - name: Production build
         run: npm run build
 
+  backend-tests:
+    name: Vendored Go backend tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: gemini-web2api-ikhsan3adi
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+          check-latest: true
+          cache-dependency-path: gemini-web2api-ikhsan3adi/go.sum
+
+      - name: Go vet
+        run: go vet ./...
+
+      - name: Unit tests
+        run: go test ./...
+
+      - name: Build
+        run: go build -o /dev/null .
+
   build-windows:
     name: Package GlassGem for Windows
     # Packaging only runs for tags / manual dispatch, keeping PRs fast.
     if: github.event_name != 'pull_request'
-    needs: verify
+    needs: [verify, backend-tests]
     runs-on: windows-latest
 
     steps:

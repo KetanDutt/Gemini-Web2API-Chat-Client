@@ -3,14 +3,7 @@ import { Toaster } from 'sonner'
 import { AmbientBackground } from '@/components/background/AmbientBackground'
 import { AppLayout } from '@/layouts/AppLayout'
 import { TooltipProvider } from '@/components/ui/Tooltip'
-import { SettingsDialog } from '@/components/dialogs/SettingsDialog'
-import { SearchDialog } from '@/components/dialogs/SearchDialog'
-import { ShortcutsDialog } from '@/components/dialogs/ShortcutsDialog'
-import { PromptLibraryDialog } from '@/components/dialogs/PromptLibraryDialog'
-import { OnboardingDialog } from '@/components/dialogs/OnboardingDialog'
-import { DebugDialog } from '@/components/dialogs/DebugDialog'
-import { DeleteConversationDialog } from '@/components/dialogs/DeleteConversationDialog'
-import { PwaPrompt } from '@/components/layout/PwaPrompt'
+import { DialogHost } from '@/components/dialogs/DialogHost'
 import { useTheme, useIsDark } from '@/hooks/useTheme'
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts'
 import { useConnectionMonitor } from '@/hooks/useConnectionMonitor'
@@ -39,14 +32,7 @@ export default function App() {
     <TooltipProvider>
       <AmbientBackground />
       <AppLayout />
-      <SettingsDialog />
-      <SearchDialog />
-      <ShortcutsDialog />
-      <PromptLibraryDialog />
-      <DebugDialog />
-      <DeleteConversationDialog />
-      <OnboardingDialog />
-      <PwaPrompt />
+      <DialogHost />
       <Toaster
         position="bottom-right"
         theme={dark ? 'dark' : 'light'}

@@ -6,6 +6,7 @@ import { useUI } from '@/stores/uiStore'
 import { useConnection } from '@/stores/connectionStore'
 import { cn, formatBytes, modKey } from '@/lib/utils'
 import { fileToAttachment, AttachmentError } from '@/lib/images'
+import { deleteDraft, getAttachmentDraft, getDraft, setAttachmentDraft, setDraft } from '@/services/drafts'
 import { Tooltip } from '@/components/ui/Tooltip'
 import { COMPOSER_FOCUS_EVENT } from '@/hooks/useKeyboardShortcuts'
 import { ModelSelector } from './ModelSelector'
@@ -36,9 +37,12 @@ export function Composer() {
   const [focused, setFocused] = useState(false)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [reading, setReading] = useState(false)
+  const [dragActive, setDragActive] = useState(false)
   const ref = useRef<HTMLTextAreaElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
-  const drafts = useRef<Map<string, { text: string; attachments: Attachment[] }>>(new Map())
+  const dragDepth = useRef(0)
+  // Drafts are keyed by conversation id; '__new' holds the not-yet-created chat.
+  const convKey = activeId ?? '__new'
 
   const resize = useCallback(() => {
     const el = ref.current
@@ -61,19 +65,34 @@ export function Composer() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [insertNonce])
 
-  // Keep a per-conversation draft (text + attachments).
-  const prevId = useRef<string | null>(activeId)
+  // Swap per-conversation drafts (text persists in localStorage, attachments
+  // live in a runtime map) when the active conversation changes.
+  const prevKey = useRef(convKey)
   useEffect(() => {
-    if (prevId.current !== activeId) {
-      drafts.current.set(prevId.current ?? '__none', { text: value, attachments })
-      const next = drafts.current.get(activeId ?? '__none')
-      setValue(next?.text ?? '')
-      setAttachments(next?.attachments ?? [])
-      prevId.current = activeId
+    if (prevKey.current !== convKey) {
+      setAttachmentDraft(prevKey.current, attachments)
+      setValue(getDraft(convKey))
+      setAttachments(getAttachmentDraft<Attachment>(convKey))
+      prevKey.current = convKey
       requestAnimationFrame(resize)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeId])
+  }, [convKey])
+
+  // Persist the text draft as the user types (debounced inside the service).
+  // The commit that carries a conversation switch still holds the previous
+  // conversation's text — it must not be stored under the new key. The old
+  // text was already persisted by earlier commits, so skipping is safe; the
+  // next commit (with the restored text) re-persisting is idempotent.
+  const lastPersistKey = useRef(convKey)
+  useEffect(() => {
+    if (lastPersistKey.current !== convKey) {
+      lastPersistKey.current = convKey
+      return
+    }
+    setDraft(convKey, value)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, convKey])
 
   useEffect(() => {
     const focus = () => ref.current?.focus()
@@ -92,7 +111,8 @@ export function Composer() {
     const toSend = attachments
     setValue('')
     setAttachments([])
-    drafts.current.delete(activeId ?? '__none')
+    deleteDraft(convKey)
+    setAttachmentDraft(convKey, [])
     requestAnimationFrame(resize)
     void sendMessage(text, { attachments: toSend.length ? toSend : undefined })
   }
@@ -149,6 +169,49 @@ export function Composer() {
 
   const removeAttachment = (id: string) => setAttachments((prev) => prev.filter((a) => a.id !== id))
 
+  /** Files offered by paste or drop become attachments; text flows normally. */
+  const offerFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return
+    if (imageCap !== 'supported') {
+      toast.info('Attachments unavailable', 'Enable image input in Settings → Chat once your Web2API server supports it.')
+      return
+    }
+    void onFiles(files)
+  }
+
+  const onPaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const files = e.clipboardData?.files
+    if (!files || files.length === 0) return // plain text paste
+    e.preventDefault()
+    offerFiles(files)
+  }
+
+  const dropHasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer?.types ?? []).includes('Files')
+
+  const onDragEnter = (e: React.DragEvent) => {
+    if (!dropHasFiles(e)) return
+    e.preventDefault()
+    dragDepth.current += 1
+    setDragActive(true)
+  }
+  const onDragOver = (e: React.DragEvent) => {
+    if (!dropHasFiles(e)) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'copy'
+  }
+  const onDragLeave = (e: React.DragEvent) => {
+    if (!dropHasFiles(e)) return
+    dragDepth.current = Math.max(0, dragDepth.current - 1)
+    if (dragDepth.current === 0) setDragActive(false)
+  }
+  const onDrop = (e: React.DragEvent) => {
+    if (!dropHasFiles(e)) return
+    e.preventDefault()
+    dragDepth.current = 0
+    setDragActive(false)
+    offerFiles(e.dataTransfer.files)
+  }
+
   const model = conv?.model ?? defaultModel
   const onModel = (id: string) => {
     if (conv) void setConversationModel(conv.id, id)
@@ -163,7 +226,12 @@ export function Composer() {
         className={cn(
           'glass-md mx-auto w-full max-w-3xl rounded-(--radius-xl) transition-[box-shadow,border-color] duration-(--duration-slow) ease-(--ease-standard)',
           focused && 'border-(--accent-ring) shadow-[inset_0_0_0_1px_var(--glass-edge),0_0_0_4px_var(--accent-soft),var(--shadow-md)]',
+          dragActive && 'border-(--accent-ring) shadow-[inset_0_0_0_1px_var(--glass-edge),0_0_0_4px_var(--accent-soft),var(--shadow-md)]',
         )}
+        onDragEnter={onDragEnter}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={onDrop}
       >
         {attachments.length > 0 && (
           <div className="relative z-1 flex flex-wrap gap-2 px-4 pt-3.5" aria-label="Attached images">
@@ -202,6 +270,7 @@ export function Composer() {
           value={value}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={onKeyDown}
+          onPaste={onPaste}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
           placeholder={generating ? 'Gemini is responding…' : attachments.length ? 'Add a message or send the images…' : 'Message Gemini…'}
@@ -283,6 +352,13 @@ export function Composer() {
             )}
           </div>
         </div>
+        {dragActive && (
+          <div className="pointer-events-none absolute inset-0 z-2 flex items-center justify-center rounded-(--radius-xl) bg-(--accent-soft) backdrop-blur-[2px]" aria-hidden>
+            <span className="glass-float flex items-center gap-2 rounded-(--radius-pill) px-4 py-2 text-[13px] font-medium text-fg">
+              <ImagePlus size={15} className="text-accent" /> Drop images to attach them
+            </span>
+          </div>
+        )}
       </div>
       <p className="mx-auto mt-2 hidden max-w-3xl text-center text-[11px] text-fg-subtle sm:block">Gemini can make mistakes. Responses come from your local Web2API server.</p>
     </div>

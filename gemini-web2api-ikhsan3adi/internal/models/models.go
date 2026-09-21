@@ -3,6 +3,7 @@ package models
 import (
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -74,6 +75,18 @@ type Resolved struct {
 }
 
 const DefaultModelName = "gemini-3.6-flash"
+
+// SortedModelNames returns the known model IDs in a stable alphabetical
+// order, so API listings stay deterministic across requests instead of
+// following Go's randomized map iteration order.
+func SortedModelNames() []string {
+	names := make([]string, 0, len(MODELS))
+	for name := range MODELS {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return names
+}
 
 // Resolve maps a requested model string to its corresponding backend configuration.
 // It supports model name suffixes like "@think=N" (e.g. "gemini-3.6-flash@think=0")

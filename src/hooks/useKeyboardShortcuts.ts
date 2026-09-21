@@ -57,9 +57,19 @@ export function useKeyboardShortcuts() {
           ui.setDrawerOpen(false)
           return
         }
-        if (ui.renamingId) ui.setRenaming(null)
+        if (ui.renamingId) {
+          ui.setRenaming(null)
+          return
+        }
         const conv = useConversations.getState()
-        if (conv.editingMessageId) conv.setEditing(null)
+        if (conv.editingMessageId) {
+          conv.setEditing(null)
+          return
+        }
+        // Escape also stops a running generation in the active conversation.
+        if (conv.activeId && conv.generating[conv.activeId]) {
+          conv.stopGeneration(conv.activeId)
+        }
       }
     }
     window.addEventListener('keydown', onKey)

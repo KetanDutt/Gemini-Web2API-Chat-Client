@@ -24,6 +24,7 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
   const renameConversation = useConversations((s) => s.renameConversation)
   const toggleFavorite = useConversations((s) => s.toggleFavorite)
   const togglePinned = useConversations((s) => s.togglePinned)
+  const duplicateConversation = useConversations((s) => s.duplicateConversation)
   const getConversationMessages = useConversations((s) => s.getConversationMessages)
   const requestDelete = useUI((s) => s.requestDelete)
   const renamingId = useUI((s) => s.renamingId)
@@ -65,6 +66,14 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
       toast.success('Export complete', `${conv.title} · ${ext.toUpperCase()}`)
     },
     [getConversationMessages],
+  )
+
+  const handleDuplicate = useCallback(
+    async (id: string) => {
+      const copy = await duplicateConversation(id)
+      if (copy) toast.success('Conversation duplicated', copy.title)
+    },
+    [duplicateConversation],
   )
 
   const handleNew = async () => {
@@ -156,6 +165,7 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
                   onFavorite={toggleFavorite}
                   onPin={togglePinned}
                   onDelete={requestDelete}
+                  onDuplicate={handleDuplicate}
                   onExport={handleExport}
                 />
               ))}
@@ -204,6 +214,7 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
                     onFavorite={toggleFavorite}
                     onPin={togglePinned}
                     onDelete={requestDelete}
+                    onDuplicate={handleDuplicate}
                     onExport={handleExport}
                   />
                 ))}

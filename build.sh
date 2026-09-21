@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # ===================================================================
 #  GlassGem - create a production build
 #
@@ -10,7 +10,7 @@
 # ===================================================================
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
 CLEAN=""
@@ -42,7 +42,7 @@ echo "    GlassGem  -  production build"
 echo "  ============================================="
 echo ""
 
-bash "scripts/check-env.sh" $CLEAN
+sh "scripts/check-env.sh" $CLEAN
 
 echo ""
 echo "[1/2]   Type-checking..."

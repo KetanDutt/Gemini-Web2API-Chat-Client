@@ -1,7 +1,7 @@
 {
   "name": "glassgem",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "main": "electron/main.cjs",
   "description": "GlassGem — a Liquid Glass chat client for Gemini Web2API",
@@ -12,6 +12,9 @@
     "typecheck": "tsc -b",
     "test": "node --import ./test/register.mjs --test \"test/*.test.ts\"",
     "mock": "node scripts/mock-web2api.mjs",
+    "web2api": "node scripts/ensure-web2api.mjs",
+    "web2api:foreground": "node scripts/ensure-web2api.mjs --foreground",
+    "web2api:stop": "node scripts/stop-web2api.mjs",
     "desktop": "electron .",
     "desktop:dev": "node scripts/desktop-dev.mjs",
     "desktop:build": "npm run build && electron-builder --win",

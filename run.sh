@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # ===================================================================
 #  GlassGem - start the web (browser/PWA) development server
 #
@@ -8,10 +8,12 @@
 #      ./run.sh mock       also start the mock Web2API server (for UI testing)
 #      ./run.sh stop       stop the background Web2API server and exit
 #      ./run.sh --help     show this help
+#
+#  POSIX sh: runs on any Linux (incl. Alpine/BusyBox ash) and macOS.
 # ===================================================================
 set -e
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
 CLEAN=""
@@ -64,7 +66,7 @@ echo "    Browser/PWA version"
 echo ""
 
 # ---------- environment + dependencies ------------------------------
-bash "scripts/check-env.sh" $CLEAN
+sh "scripts/check-env.sh" $CLEAN
 
 # ---------- ensure gemini-web2api is present and running -----------
 WEB2API="${GLASSGEM_WEB2API_URL:-http://127.0.0.1:8081}"

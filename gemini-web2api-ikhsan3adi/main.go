@@ -81,10 +81,7 @@ func main() {
 		log.Printf("BL auto-updated: %s -> %s", cfg.GeminiBL, newBL)
 	}
 
-	modelKeys := make([]string, 0, len(models.MODELS))
-	for k := range models.MODELS {
-		modelKeys = append(modelKeys, k)
-	}
+	modelKeys := models.SortedModelNames()
 
 	cookieStatus := "none (anonymous)"
 	if cfg.CookieFile != "" {

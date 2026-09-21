@@ -1,34 +1,46 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # ===================================================================
 #  GlassGem / Gemini Web2API Service Launcher
-#  Handles running the Go binary, Python version, or fallback mock.
+#  Handles running the Go binary, a Python fallback, or the mock.
+#  Used by the systemd / OpenRC services created by setup-linux.sh.
+#
+#  POSIX sh: works under bash, dash and BusyBox ash (Alpine).
 # ===================================================================
-set -euo pipefail
+set -eu
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 PORT="${PORT:-8081}"
 HOST="${HOST:-0.0.0.0}"
 WEB2API_DIR="${WEB2API_DIR:-}"
 
-# Release port if held by a stray non-systemd process
-if command -v ss >/dev/null 2>&1; then
-  STRAY_PIDS=$(ss -tulpn "sport = :${PORT}" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u || true)
-  for pid in $STRAY_PIDS; do
-    if [ -n "$pid" ] && [ "$pid" -gt 1 ] && [ "$pid" -ne "$$" ]; then
-      kill -9 "$pid" 2>/dev/null || true
+# Release port if held by a stray non-service process (iproute2 ss, BusyBox
+# ss, and lsof variants - whichever the distro provides).
+kill_port() {
+  PORT_TO_KILL="$1"
+  PIDS=""
+  if command -v lsof >/dev/null 2>&1; then
+    PIDS=$(lsof -ti :"$PORT_TO_KILL" 2>/dev/null || true)
+  elif command -v ss >/dev/null 2>&1; then
+    PIDS=$(ss -tulpn 2>/dev/null | grep -F ":$PORT_TO_KILL " | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u || true)
+  fi
+  for pid in $PIDS; do
+    case "$pid" in ''|*[!0-9]*) continue ;; esac
+    if [ "$pid" -gt 1 ] && [ "$pid" -ne "$$" ]; then
+      kill "$pid" 2>/dev/null || kill -9 "$pid" 2>/dev/null || true
     fi
   done
-  sleep 0.5
-elif command -v fuser >/dev/null 2>&1; then
-  fuser -k "${PORT}/tcp" 2>/dev/null || true
-  sleep 0.5
-fi
+  [ -n "$PIDS" ] && sleep 1
+  return 0
+}
+kill_port "$PORT"
 
-# Auto-detect directory if not set
+# Auto-detect directory if not set (vendored sources bundled with this repo first)
 if [ -z "$WEB2API_DIR" ]; then
-  if [ -d "$REPO_ROOT/gemini-web2api" ]; then
+  if [ -d "$REPO_ROOT/gemini-web2api-ikhsan3adi" ]; then
+    WEB2API_DIR="$REPO_ROOT/gemini-web2api-ikhsan3adi"
+  elif [ -d "$REPO_ROOT/gemini-web2api" ]; then
     WEB2API_DIR="$REPO_ROOT/gemini-web2api"
   elif [ -d "$REPO_ROOT/../gemini-web2api" ]; then
     WEB2API_DIR="$(cd "$REPO_ROOT/../gemini-web2api" && pwd)"
@@ -44,11 +56,13 @@ if [ -n "$WEB2API_DIR" ] && [ -x "$WEB2API_DIR/gemini-web2api" ]; then
   exec ./gemini-web2api --port "$PORT"
 fi
 
-# Strategy 2: If Go is installed and source is present, compile and run
+# Strategy 2: If Go is installed and source is present, compile and run.
+# CGO_ENABLED=0 produces a fully static binary that runs on glibc and musl
+# (Alpine) systems alike.
 if [ -n "$WEB2API_DIR" ] && [ -f "$WEB2API_DIR/main.go" ] && command -v go >/dev/null 2>&1; then
-  echo "[INFO] Found main.go and Go compiler. Compiling gemini-web2api..."
+  echo "[INFO] Found main.go and Go compiler. Compiling gemini-web2api (static build)..."
   cd "$WEB2API_DIR"
-  if go build -o gemini-web2api .; then
+  if CGO_ENABLED=0 go build -o gemini-web2api .; then
     echo "[OK] Build succeeded. Starting gemini-web2api binary on port $PORT..."
     exec ./gemini-web2api --port "$PORT"
   else

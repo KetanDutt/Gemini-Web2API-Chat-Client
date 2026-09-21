@@ -1,6 +1,6 @@
 import { memo, useEffect, useRef, useState } from 'react'
 import { motion } from 'motion/react'
-import { ChevronRight, Download, MoreHorizontal, Pencil, Pin, PinOff, Star, Trash2, FileJson, FileText, FileType } from 'lucide-react'
+import { ChevronRight, CopyPlus, Download, MoreHorizontal, Pencil, Pin, PinOff, Star, Trash2, FileJson, FileText, FileType } from 'lucide-react'
 import { cn, formatRelative } from '@/lib/utils'
 import type { Conversation } from '@/types'
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuSub, MenuSubContent, MenuSubTrigger, MenuTrigger } from '@/components/ui/Menu'
@@ -18,10 +18,11 @@ interface Props {
   onFavorite: (id: string) => void
   onPin: (id: string) => void
   onDelete: (id: string) => void
+  onDuplicate: (id: string) => void
   onExport: (id: string, format: 'json' | 'markdown' | 'txt') => void
 }
 
-export const ConversationItem = memo(function ConversationItem({ conversation: c, active, renaming, query, snippet, onSelect, onRename, onStartRename, onFavorite, onPin, onDelete, onExport }: Props) {
+export const ConversationItem = memo(function ConversationItem({ conversation: c, active, renaming, query, snippet, onSelect, onRename, onStartRename, onFavorite, onPin, onDelete, onDuplicate, onExport }: Props) {
   const [draft, setDraft] = useState(c.title)
   const [menuOpen, setMenuOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -132,6 +133,9 @@ export const ConversationItem = memo(function ConversationItem({ conversation: c
                 </MenuItem>
               </MenuSubContent>
             </MenuSub>
+            <MenuItem icon={<CopyPlus size={14} />} onSelect={() => onDuplicate(c.id)}>
+              Duplicate
+            </MenuItem>
             <MenuSeparator />
             <MenuItem icon={<Trash2 size={14} />} danger onSelect={() => onDelete(c.id)}>
               Delete
