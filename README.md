@@ -89,7 +89,19 @@ Double-click **`run.bat`**. It checks Node.js (offers to install it via winget i
 | `build.bat clean` | Reinstall dependencies before building |
 | `build.bat desktop` | Build the native Windows installer and portable app |
 
-Every script stops with a plain-language explanation and suggested fix when something goes wrong (missing/old Node.js, failed `npm install`, type errors, port conflicts…). Add `/?` to see the options.
+### Linux / macOS
+
+Run **`./run.sh`** from your terminal. It verifies the environment, handles dependencies, checks Web2API, and starts the dev server:
+
+| Command | Purpose |
+| --- | --- |
+| `./run.sh` | Start GlassGem in the browser |
+| `./run.sh clean` | Reinstall dependencies, then start |
+| `./run.sh mock` | Start mock Web2API server (port 8081) and GlassGem |
+| `./build.sh` | Type-check + production build into `dist/` |
+| `./build.sh preview` | Build, then start local preview server |
+
+Every script stops with a plain-language explanation and suggested fix when something goes wrong (missing/old Node.js, failed `npm install`, type errors, port conflicts…). Add `/?` or `--help` to see the options.
 
 ### Manual
 

@@ -8,3 +8,4 @@ dev-dist
 npm-debug.log*
 .vite
 *.tsbuildinfo
+gemini-web2api/
