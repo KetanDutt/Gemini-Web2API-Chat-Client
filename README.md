@@ -103,6 +103,31 @@ Run **`./run.sh`** from your terminal. It verifies the environment, handles depe
 
 Every script stops with a plain-language explanation and suggested fix when something goes wrong (missing/old Node.js, failed `npm install`, type errors, port conflicts…). Add `/?` or `--help` to see the options.
 
+### Linux Services (Auto-Start on System Restart)
+
+To register both **Gemini Web2API** and **GlassGem** as system services that start automatically when your Linux machine boots or restarts:
+
+```bash
+sudo ./setup-linux.sh
+```
+
+This setup script:
+- Verifies system requirements (systemd, Node.js 20+, npm).
+- Locates or clones `gemini-web2api` and builds the Go binary or configures graceful mock/Python fallback.
+- Detects and clears any existing port conflicts on ports `5173` and `8081`.
+- Creates `/etc/systemd/system/gemini-web2api.service` and `/etc/systemd/system/glassgem.service`.
+- Enables both services so they start automatically on boot/restart (`multi-user.target`).
+- Verifies health via HTTP checks and automatically diagnoses logs if any service fails.
+
+Service management:
+```bash
+sudo ./setup-linux.sh --status     # View health and running status
+sudo ./setup-linux.sh --restart    # Restart both services
+sudo ./setup-linux.sh --logs       # View live logs
+sudo ./setup-linux.sh --stop       # Stop services
+sudo ./setup-linux.sh --uninstall  # Remove services from systemd
+```
+
 ### Manual
 
 ```bat
