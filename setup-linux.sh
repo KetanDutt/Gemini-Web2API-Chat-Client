@@ -402,12 +402,20 @@ do_install() {
   fi
   log_ok "gemini-web2api located at: $WEB2API_DIR"
 
-  # Check Go binary or compilation
+  # Check Go binary, compilation, or prebuilt release download
   if [ -x "$WEB2API_DIR/gemini-web2api" ]; then
     log_ok "Found precompiled gemini-web2api binary."
   elif command -v go >/dev/null 2>&1; then
     log_info "Go compiler found. Compiling gemini-web2api..."
-    su - "$SERVICE_USER" -c "cd \"$WEB2API_DIR\" && go build -o gemini-web2api ." || log_warn "Go build failed; will fall back to mock/wrapper."
+    if ! su - "$SERVICE_USER" -c "cd \"$WEB2API_DIR\" && go build -o gemini-web2api ."; then
+      log_warn "Go build failed; trying the prebuilt release binary..."
+      su - "$SERVICE_USER" -c "cd \"$REPO_ROOT\" && WEB2API_DIR=\"$WEB2API_DIR\" node scripts/ensure-web2api.mjs --install-only" || true
+    fi
+  elif command -v node >/dev/null 2>&1; then
+    log_info "Go compiler not found. Downloading the prebuilt gemini-web2api release..."
+    if ! su - "$SERVICE_USER" -c "cd \"$REPO_ROOT\" && WEB2API_DIR=\"$WEB2API_DIR\" node scripts/ensure-web2api.mjs --install-only"; then
+      log_warn "Prebuilt download failed; the launcher will fall back to the mock server."
+    fi
   else
     log_info "Go compiler not found. The launcher will automatically use the built-in mock server or Python fallback."
   fi

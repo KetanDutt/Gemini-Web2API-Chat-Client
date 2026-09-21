@@ -6,6 +6,7 @@
 #      ./run.sh            start GlassGem
 #      ./run.sh clean      delete node_modules, reinstall, then start
 #      ./run.sh mock       also start the mock Web2API server (for UI testing)
+#      ./run.sh stop       stop the background Web2API server and exit
 #      ./run.sh --help     show this help
 # ===================================================================
 set -e
@@ -15,6 +16,7 @@ cd "$SCRIPT_DIR"
 
 CLEAN=""
 MOCK=""
+STOP=""
 
 for arg in "$@"; do
   case "$arg" in
@@ -24,20 +26,35 @@ for arg in "$@"; do
     mock)
       MOCK="1"
       ;;
+    stop)
+      STOP="1"
+      ;;
     -h|--help|/?)
       echo ""
-      echo "  run.sh [clean] [mock]"
+      echo "  run.sh [clean] [mock] [stop]"
       echo ""
       echo "    clean   remove node_modules and reinstall before starting"
       echo "    mock    also start the mock Web2API server (sample answers only)"
+      echo "    stop    stop the background Web2API server and exit"
       echo ""
       echo "  Environment: set GLASSGEM_WEB2API_URL to override the Web2API address"
-      echo "  that is checked at startup (default http://127.0.0.1:8081)."
+      echo "  that is checked at startup (default http://127.0.0.1:8081). Its port"
+      echo "  is also used when GlassGem starts the server itself."
+      echo "  Set GLASSGEM_SKIP_AUTO_WEB2API=1 to never auto-start the server."
       echo ""
       exit 0
       ;;
   esac
 done
+
+if [ -n "$STOP" ]; then
+  if ! command -v node >/dev/null 2>&1; then
+    echo "[ERROR] Node.js is not installed or is not on your PATH." >&2
+    exit 1
+  fi
+  node scripts/stop-web2api.mjs
+  exit $?
+fi
 
 echo ""
 echo "  ============================================="
@@ -53,16 +70,12 @@ bash "scripts/check-env.sh" $CLEAN
 WEB2API="${GLASSGEM_WEB2API_URL:-http://127.0.0.1:8081}"
 MOCK_PID=""
 
+# The Web2API daemon intentionally keeps running after GlassGem exits (same
+# on Windows and Linux) so the next start reuses it; stop it explicitly with
+# ./run.sh stop. Only the session-scoped mock server is stopped on exit.
 cleanup() {
   if [ -n "$MOCK_PID" ] && kill -0 "$MOCK_PID" 2>/dev/null; then
     kill "$MOCK_PID" 2>/dev/null || true
-  fi
-  if [ -f ".web2api.pid" ]; then
-    SPAWNED_PID=$(cat .web2api.pid 2>/dev/null || true)
-    if [ -n "$SPAWNED_PID" ] && kill -0 "$SPAWNED_PID" 2>/dev/null; then
-      kill "$SPAWNED_PID" 2>/dev/null || true
-    fi
-    rm -f .web2api.pid 2>/dev/null || true
   fi
 }
 trap cleanup EXIT INT TERM
@@ -74,6 +87,8 @@ if [ -n "$MOCK" ]; then
   MOCK_PID=$!
   sleep 1
 else
+  echo "[INFO]  Ensuring Gemini Web2API is present and running..."
+  echo "        (first run: downloads or builds the server - can take a minute)"
   node scripts/ensure-web2api.mjs || true
 fi
 
