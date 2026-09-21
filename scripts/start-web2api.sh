@@ -12,6 +12,20 @@ PORT="${PORT:-8081}"
 HOST="${HOST:-0.0.0.0}"
 WEB2API_DIR="${WEB2API_DIR:-}"
 
+# Release port if held by a stray non-systemd process
+if command -v ss >/dev/null 2>&1; then
+  STRAY_PIDS=$(ss -tulpn "sport = :${PORT}" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u || true)
+  for pid in $STRAY_PIDS; do
+    if [ -n "$pid" ] && [ "$pid" -gt 1 ] && [ "$pid" -ne "$$" ]; then
+      kill -9 "$pid" 2>/dev/null || true
+    fi
+  done
+  sleep 0.5
+elif command -v fuser >/dev/null 2>&1; then
+  fuser -k "${PORT}/tcp" 2>/dev/null || true
+  sleep 0.5
+fi
+
 # Auto-detect directory if not set
 if [ -z "$WEB2API_DIR" ]; then
   if [ -d "$REPO_ROOT/gemini-web2api" ]; then

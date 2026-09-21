@@ -304,10 +304,10 @@ clear_port_conflict() {
   local name="$2"
 
   local pids=""
-  if command -v fuser >/dev/null 2>&1; then
-    pids="$(fuser "$port/tcp" 2>/dev/null || true)"
-  elif command -v ss >/dev/null 2>&1; then
+  if command -v ss >/dev/null 2>&1; then
     pids="$(ss -tulpn "sport = :$port" 2>/dev/null | grep -o 'pid=[0-9]*' | cut -d= -f2 | sort -u || true)"
+  elif command -v fuser >/dev/null 2>&1; then
+    pids="$(fuser "$port/tcp" 2>/dev/null || true)"
   elif command -v lsof >/dev/null 2>&1; then
     pids="$(lsof -ti :"$port" 2>/dev/null || true)"
   fi

@@ -49,13 +49,20 @@ echo ""
 # ---------- environment + dependencies ------------------------------
 bash "scripts/check-env.sh" $CLEAN
 
-# ---------- optional mock Web2API -----------------------------------
+# ---------- ensure gemini-web2api is present and running -----------
 WEB2API="${GLASSGEM_WEB2API_URL:-http://127.0.0.1:8081}"
 MOCK_PID=""
 
 cleanup() {
   if [ -n "$MOCK_PID" ] && kill -0 "$MOCK_PID" 2>/dev/null; then
     kill "$MOCK_PID" 2>/dev/null || true
+  fi
+  if [ -f ".web2api.pid" ]; then
+    SPAWNED_PID=$(cat .web2api.pid 2>/dev/null || true)
+    if [ -n "$SPAWNED_PID" ] && kill -0 "$SPAWNED_PID" 2>/dev/null; then
+      kill "$SPAWNED_PID" 2>/dev/null || true
+    fi
+    rm -f .web2api.pid 2>/dev/null || true
   fi
 }
 trap cleanup EXIT INT TERM
@@ -66,6 +73,8 @@ if [ -n "$MOCK" ]; then
   node scripts/mock-web2api.mjs 8081 &
   MOCK_PID=$!
   sleep 1
+else
+  node scripts/ensure-web2api.mjs || true
 fi
 
 # ---------- is Web2API reachable? (informational only) --------------

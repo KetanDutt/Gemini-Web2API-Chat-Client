@@ -52,7 +52,7 @@ if "%RC%"=="2" (
 )
 if not "%RC%"=="0" goto :fail
 
-rem ---------- optional mock Web2API -----------------------------------
+rem ---------- ensure gemini-web2api is present and running -----------
 set "WEB2API=http://127.0.0.1:8081"
 if defined GLASSGEM_WEB2API_URL set "WEB2API=%GLASSGEM_WEB2API_URL%"
 if defined MOCK (
@@ -60,6 +60,9 @@ if defined MOCK (
   echo         It only returns sample answers - use it to try the UI without Gemini.
   start "GlassGem - Mock Web2API" cmd /k node "scripts\mock-web2api.mjs" 8081
   timeout /t 2 /nobreak >nul
+) else (
+  echo [INFO]  Ensuring Gemini Web2API is present and running...
+  call node "scripts\ensure-web2api.mjs"
 )
 
 rem ---------- is Web2API reachable? (informational only) --------------

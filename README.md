@@ -53,7 +53,14 @@ This downloads the dependencies into `node_modules` (only needed once, or after 
 
 ## 3. Starting Web2API
 
-GlassGem does not include Web2API — start it the way you normally do (for example `python main.py` or its own launcher). When it is running you should be able to open this in a browser:
+GlassGem features **automated Web2API management**: whenever you start GlassGem (via `./run.sh`, `run.bat`, `run-desktop.bat`, or `npm run dev`), it automatically checks if Gemini Web2API is listening on port 8081.
+
+If Web2API is not running, GlassGem automatically:
+1. Verifies if `gemini-web2api` is present locally, or automatically checks it out from [https://github.com/ikhsan3adi/gemini-web2api](https://github.com/ikhsan3adi/gemini-web2api).
+2. Builds the Go binary (`gemini-web2api`) if Go is installed (or uses Python / built-in mock fallback if Go is not installed).
+3. Starts the Web2API server in the background on port `8081`.
+
+You can also start it manually or as a system service with `sudo ./setup-linux.sh`. When it is running you should be able to open this in a browser:
 
 ```
 http://127.0.0.1:8081/v1/models
