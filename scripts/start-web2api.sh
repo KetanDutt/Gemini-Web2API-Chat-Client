@@ -32,8 +32,8 @@ if [ -z "$WEB2API_DIR" ]; then
     WEB2API_DIR="$REPO_ROOT/gemini-web2api"
   elif [ -d "$REPO_ROOT/../gemini-web2api" ]; then
     WEB2API_DIR="$(cd "$REPO_ROOT/../gemini-web2api" && pwd)"
-  elif [ -d "/home/user/gemini-web2api" ]; then
-    WEB2API_DIR="/home/user/gemini-web2api"
+  elif [ -n "${HOME:-}" ] && [ -d "$HOME/gemini-web2api" ]; then
+    WEB2API_DIR="$HOME/gemini-web2api"
   fi
 fi
 
@@ -56,18 +56,36 @@ if [ -n "$WEB2API_DIR" ] && [ -f "$WEB2API_DIR/main.go" ] && command -v go >/dev
   fi
 fi
 
-# Strategy 3: Check for Python implementation (gemini_web2api.py)
+# Strategy 3: Try the prebuilt release binary (no Go toolchain needed)
+if [ -z "${WEB2API_NO_DOWNLOAD:-}" ] && command -v node >/dev/null 2>&1; then
+  echo "[INFO] No local binary. Trying the prebuilt gemini-web2api release..."
+  if [ -z "$WEB2API_DIR" ]; then
+    WEB2API_DIR="$REPO_ROOT/gemini-web2api"
+  fi
+  export WEB2API_DIR
+  if node "$REPO_ROOT/scripts/ensure-web2api.mjs" --install-only --port "$PORT" >/dev/null 2>&1; then
+    echo "[OK] Prebuilt binary ready."
+  fi
+fi
+
+if [ -n "$WEB2API_DIR" ] && [ -x "$WEB2API_DIR/gemini-web2api" ]; then
+  echo "[INFO] Starting gemini-web2api binary from $WEB2API_DIR on port $PORT..."
+  cd "$WEB2API_DIR"
+  exec ./gemini-web2api --port "$PORT"
+fi
+
+# Strategy 4: Check for Python implementation (gemini_web2api.py)
 if [ -n "$WEB2API_DIR" ] && [ -f "$WEB2API_DIR/gemini_web2api.py" ] && command -v python3 >/dev/null 2>&1; then
   echo "[INFO] Starting Python gemini_web2api from $WEB2API_DIR on port $PORT..."
   cd "$WEB2API_DIR"
   exec python3 gemini_web2api.py --port "$PORT"
 fi
 
-# Strategy 4: Fallback to built-in GlassGem mock Web2API server
+# Strategy 5: Fallback to built-in GlassGem mock Web2API server
 MOCK_SCRIPT="$REPO_ROOT/scripts/mock-web2api.mjs"
 if [ -f "$MOCK_SCRIPT" ] && command -v node >/dev/null 2>&1; then
-  echo "[INFO] Running GlassGem mock Web2API server on port $PORT (key: sk-gemini)..."
-  echo "[INFO] (To use real Gemini Web2API: compile gemini-web2api or place binary in $WEB2API_DIR)"
+  echo "[WARN] No real Gemini Web2API available - running the MOCK server on port $PORT (sample answers only)."
+  echo "[INFO] (To use real Gemini: install Go, or allow the prebuilt download from github.com)"
   cd "$REPO_ROOT"
   exec node "$MOCK_SCRIPT" "$PORT"
 fi

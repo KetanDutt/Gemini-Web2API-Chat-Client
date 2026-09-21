@@ -55,10 +55,13 @@ This downloads the dependencies into `node_modules` (only needed once, or after 
 
 GlassGem features **automated Web2API management**: whenever you start GlassGem (via `./run.sh`, `run.bat`, `run-desktop.bat`, or `npm run dev`), it automatically checks if Gemini Web2API is listening on port 8081.
 
-If Web2API is not running, GlassGem automatically:
-1. Verifies if `gemini-web2api` is present locally, or automatically checks it out from [https://github.com/ikhsan3adi/gemini-web2api](https://github.com/ikhsan3adi/gemini-web2api).
-2. Builds the Go binary (`gemini-web2api`) if Go is installed (or uses Python / built-in mock fallback if Go is not installed).
-3. Starts the Web2API server in the background on port `8081`.
+If Web2API is not running, GlassGem automatically, in this order:
+1. Reuses an existing `gemini-web2api` checkout (next to the project, next to its parent, or in your home folder), or checks it out from [https://github.com/ikhsan3adi/gemini-web2api](https://github.com/ikhsan3adi/gemini-web2api) when git is available.
+2. Uses an existing `gemini-web2api` binary, builds one with Go when a toolchain is installed, or downloads the official prebuilt release for your OS/CPU (verified by SHA-256) — so neither git nor Go is strictly required.
+3. Creates a default `config.json` (API key `sk-gemini`) inside the checkout when none exists; your own config is never touched.
+4. Starts the server as a background daemon on port `8081` and waits until it answers. Its output goes to `.web2api.log`; only when no real server can be provided does GlassGem clearly warn and start the built-in mock instead (sample answers only, never real Gemini).
+
+The background server keeps running after GlassGem exits, and the next start reuses it. To stop it: `run.bat stop` · `run-desktop.bat stop` · `./run.sh stop` (or `node scripts/stop-web2api.mjs`). Set `GLASSGEM_SKIP_AUTO_WEB2API=1` to disable the auto-start entirely (for example when you run Web2API in Docker), or point GlassGem at another machine by setting `GLASSGEM_WEB2API_URL` (its port is honored when GlassGem starts the server itself).
 
 You can also start it manually or as a system service with `sudo ./setup-linux.sh`. When it is running you should be able to open this in a browser:
 
@@ -89,8 +92,10 @@ Double-click **`run.bat`**. It checks Node.js (offers to install it via winget i
 | `run.bat` | Start GlassGem in the browser (web version) |
 | `run.bat clean` | Delete `node_modules`, reinstall, then start |
 | `run.bat mock` | Also start the mock Web2API server (sample answers only) |
+| `run.bat stop` | Stop the background Web2API server |
 | `run-desktop.bat` | Start the native Windows app (Electron) with hot reload |
 | `run-desktop.bat clean` | Reinstall dependencies (including the Electron runtime), then start |
+| `run-desktop.bat stop` | Stop the background Web2API server |
 | `build.bat` | Type-check + production web build into `dist/` |
 | `build.bat preview` | Build, then serve it on <http://localhost:4173> |
 | `build.bat clean` | Reinstall dependencies before building |
@@ -105,6 +110,7 @@ Run **`./run.sh`** from your terminal. It verifies the environment, handles depe
 | `./run.sh` | Start GlassGem in the browser |
 | `./run.sh clean` | Reinstall dependencies, then start |
 | `./run.sh mock` | Start mock Web2API server (port 8081) and GlassGem |
+| `./run.sh stop` | Stop the background Web2API server |
 | `./build.sh` | Type-check + production build into `dist/` |
 | `./build.sh preview` | Build, then start local preview server |
 
@@ -207,7 +213,9 @@ Each starts as *Unknown*, becomes *Supported* after a successful observed reques
 
 | Symptom | What it means | Fix |
 | --- | --- | --- |
-| **Unable to connect to Gemini Web2API** / *Web2API offline* | Nothing is listening at the Base URL. | Start Web2API. Check its console window. Confirm the port (8081 by default). |
+| **Unable to connect to Gemini Web2API** / *Web2API offline* | Nothing is listening at the Base URL. | Start Web2API (`run.bat` does this automatically). Check `.web2api.log` in the project folder. Confirm the port (8081 by default). |
+| **Mock answers only** (startup warns about the *MOCK server*) | No real server binary, Go toolchain, or release download was available. | Allow the prebuilt download from github.com, or install Go so GlassGem can build the server. The mock is only for trying the UI. |
+| **Web2API keeps running after GlassGem exits** | The server is a background daemon by design. | This is normal — the next start reuses it. Stop it with `run.bat stop` / `./run.sh stop`. |
 | **API key rejected (401)** | The key doesn't match the server. | Settings → API → enter the key configured in Web2API (default `sk-gemini`). |
 | **Access denied (403)** | The server refused the request. | Gemini session/cookies on the Web2API side may have expired — re-login there. |
 | **Endpoint or model not found (404)** | Wrong Base URL (missing `/v1`) or unknown model ID. | Fix the URL; pick a model from the list. |
@@ -304,6 +312,8 @@ scripts/
   web2api-proxy.ts  local CORS proxy (Vite plugin)
   desktop-dev.mjs   cross-platform Vite + Electron development launcher
   mock-web2api.mjs  mock server for UI development
+  ensure-web2api.mjs  Web2API auto-installer: checkout/build/download + daemon runner
+  stop-web2api.mjs  stops the background Web2API daemon
   check-env.bat     shared Windows environment/dependency check used by the launchers
 resources/
   icon.ico        Windows installer and executable icon

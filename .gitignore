@@ -10,3 +10,4 @@ npm-debug.log*
 *.tsbuildinfo
 gemini-web2api/
 .web2api.pid
+.web2api.log

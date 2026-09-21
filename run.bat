@@ -10,7 +10,12 @@ rem  Double-click this file, or from a terminal:
 rem      run.bat            start GlassGem
 rem      run.bat clean      delete node_modules, reinstall, then start
 rem      run.bat mock       also start the mock Web2API server (for UI testing)
+rem      run.bat stop       stop the background Web2API server and exit
 rem      run.bat /?         show this help
+rem
+rem  The Web2API server keeps running in the background after GlassGem
+rem  exits. Use "run.bat stop" to stop it, or just leave it - the next
+rem  start reuses it automatically.
 rem ===================================================================
 setlocal EnableExtensions
 title GlassGem
@@ -24,16 +29,20 @@ if errorlevel 1 (
 
 set "CLEAN="
 set "MOCK="
+set "STOP="
 :parse_args
 if "%~1"=="" goto :args_done
 if /i "%~1"=="clean"  set "CLEAN=clean"
 if /i "%~1"=="mock"   set "MOCK=1"
+if /i "%~1"=="stop"   set "STOP=1"
 if /i "%~1"=="/?"     goto :help
 if /i "%~1"=="-h"     goto :help
 if /i "%~1"=="--help" goto :help
 shift
 goto :parse_args
 :args_done
+
+if defined STOP goto :stop_web2api
 
 echo.
 echo   =============================================
@@ -62,7 +71,12 @@ if defined MOCK (
   timeout /t 2 /nobreak >nul
 ) else (
   echo [INFO]  Ensuring Gemini Web2API is present and running...
+  echo         ^(first run: downloads or builds the server - can take a minute^)
   call node "scripts\ensure-web2api.mjs"
+  if errorlevel 1 (
+    echo [WARN]  Web2API is not answering yet - GlassGem will start anyway and
+    echo         reconnect automatically once the server is up.
+  )
 )
 
 rem ---------- is Web2API reachable? (informational only) --------------
@@ -110,15 +124,30 @@ echo   GlassGem stopped.
 pause
 exit /b 0
 
+:stop_web2api
+where node >nul 2>nul
+if errorlevel 1 (
+  echo [ERROR] Node.js is not installed or is not on your PATH.
+  pause
+  exit /b 1
+)
+call node "scripts\stop-web2api.mjs"
+set "RC=%errorlevel%"
+pause
+exit /b %RC%
+
 :help
 echo.
-echo   run.bat [clean] [mock]
+echo   run.bat [clean] [mock] [stop]
 echo.
 echo     clean   remove node_modules and reinstall before starting
 echo     mock    also start the mock Web2API server ^(sample answers only^)
+echo     stop    stop the background Web2API server and exit
 echo.
 echo   Environment: set GLASSGEM_WEB2API_URL to override the Web2API address
-echo   that is checked at startup ^(default http://127.0.0.1:8081^).
+echo   that is checked at startup ^(default http://127.0.0.1:8081^). Its port
+echo   is also used when GlassGem starts the server itself.
+echo   Set GLASSGEM_SKIP_AUTO_WEB2API=1 to never auto-start the server.
 echo.
 pause
 exit /b 0
