@@ -53,7 +53,14 @@ This downloads the dependencies into `node_modules` (only needed once, or after 
 
 ## 3. Starting Web2API
 
-GlassGem does not include Web2API — start it the way you normally do (for example `python main.py` or its own launcher). When it is running you should be able to open this in a browser:
+GlassGem features **automated Web2API management**: whenever you start GlassGem (via `./run.sh`, `run.bat`, `run-desktop.bat`, or `npm run dev`), it automatically checks if Gemini Web2API is listening on port 8081.
+
+If Web2API is not running, GlassGem automatically:
+1. Verifies if `gemini-web2api` is present locally, or automatically checks it out from [https://github.com/ikhsan3adi/gemini-web2api](https://github.com/ikhsan3adi/gemini-web2api).
+2. Builds the Go binary (`gemini-web2api`) if Go is installed (or uses Python / built-in mock fallback if Go is not installed).
+3. Starts the Web2API server in the background on port `8081`.
+
+You can also start it manually or as a system service with `sudo ./setup-linux.sh`. When it is running you should be able to open this in a browser:
 
 ```
 http://127.0.0.1:8081/v1/models
@@ -89,7 +96,44 @@ Double-click **`run.bat`**. It checks Node.js (offers to install it via winget i
 | `build.bat clean` | Reinstall dependencies before building |
 | `build.bat desktop` | Build the native Windows installer and portable app |
 
-Every script stops with a plain-language explanation and suggested fix when something goes wrong (missing/old Node.js, failed `npm install`, type errors, port conflicts…). Add `/?` to see the options.
+### Linux / macOS
+
+Run **`./run.sh`** from your terminal. It verifies the environment, handles dependencies, checks Web2API, and starts the dev server:
+
+| Command | Purpose |
+| --- | --- |
+| `./run.sh` | Start GlassGem in the browser |
+| `./run.sh clean` | Reinstall dependencies, then start |
+| `./run.sh mock` | Start mock Web2API server (port 8081) and GlassGem |
+| `./build.sh` | Type-check + production build into `dist/` |
+| `./build.sh preview` | Build, then start local preview server |
+
+Every script stops with a plain-language explanation and suggested fix when something goes wrong (missing/old Node.js, failed `npm install`, type errors, port conflicts…). Add `/?` or `--help` to see the options.
+
+### Linux Services (Auto-Start on System Restart)
+
+To register both **Gemini Web2API** and **GlassGem** as system services that start automatically when your Linux machine boots or restarts:
+
+```bash
+sudo ./setup-linux.sh
+```
+
+This setup script:
+- Verifies system requirements (systemd, Node.js 20+, npm).
+- Locates or clones `gemini-web2api` and builds the Go binary or configures graceful mock/Python fallback.
+- Detects and clears any existing port conflicts on ports `5173` and `8081`.
+- Creates `/etc/systemd/system/gemini-web2api.service` and `/etc/systemd/system/glassgem.service`.
+- Enables both services so they start automatically on boot/restart (`multi-user.target`).
+- Verifies health via HTTP checks and automatically diagnoses logs if any service fails.
+
+Service management:
+```bash
+sudo ./setup-linux.sh --status     # View health and running status
+sudo ./setup-linux.sh --restart    # Restart both services
+sudo ./setup-linux.sh --logs       # View live logs
+sudo ./setup-linux.sh --stop       # Stop services
+sudo ./setup-linux.sh --uninstall  # Remove services from systemd
+```
 
 ### Manual
 

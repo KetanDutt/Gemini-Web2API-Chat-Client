@@ -102,15 +102,33 @@ export function handleProxy(req: IncomingMessage, res: ServerResponse): boolean 
 export function web2apiProxyPlugin(): Plugin {
   return {
     name: 'glassgem-web2api-proxy',
-    configureServer(server) {
+    async configureServer(server) {
       server.middlewares.use((req, res, next) => {
         if (!handleProxy(req, res)) next()
       })
+      if (process.env.GLASSGEM_SKIP_AUTO_WEB2API !== '1') {
+        try {
+          // @ts-ignore - plain ESM helper module
+          const { ensureWeb2Api } = await import('./ensure-web2api.mjs')
+          await ensureWeb2Api({ background: true })
+        } catch {
+          /* ignore */
+        }
+      }
     },
-    configurePreviewServer(server) {
+    async configurePreviewServer(server) {
       server.middlewares.use((req, res, next) => {
         if (!handleProxy(req, res)) next()
       })
+      if (process.env.GLASSGEM_SKIP_AUTO_WEB2API !== '1') {
+        try {
+          // @ts-ignore - plain ESM helper module
+          const { ensureWeb2Api } = await import('./ensure-web2api.mjs')
+          await ensureWeb2Api({ background: true })
+        } catch {
+          /* ignore */
+        }
+      }
     },
   }
 }

@@ -18,6 +18,7 @@ import { spawn } from 'node:child_process'
 import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
+import { ensureWeb2Api } from './ensure-web2api.mjs'
 
 const require = createRequire(import.meta.url)
 const viteUrl = 'http://127.0.0.1:5173'
@@ -50,6 +51,13 @@ async function start() {
     throw new Error(
       `Vite was not found at ${viteBin}. Reinstall the dependencies first:  run-desktop.bat clean`,
     )
+  }
+
+  // Ensure Gemini Web2API is present, installed, and running
+  try {
+    await ensureWeb2Api({ background: true })
+  } catch (err) {
+    console.warn(`[WARN] Could not auto-start Gemini Web2API: ${err.message}`)
   }
 
   viteProcess = spawn(command, args, {
