@@ -57,7 +57,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Improved
 
 - Streaming auto-scroll does no layout work while the tab is hidden.
-- Removed dead code (unused `Skeleton` components, `debounce` helper).
+- Removed dead code (unused `Skeleton` components, menu primitives,
+  `debounce`/`isSupported` helpers).
 - New unit tests for in-flight detection and the continue-request builder
   (93 tests total, all green); docs updated throughout.
 
