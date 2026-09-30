@@ -372,6 +372,9 @@ export class GeminiWebApi {
       let finishReason: string | undefined
       let startedEmitting = false
       let sawData = false
+      // A chunk may end with a bare "\r" whose "\n" arrives in the next chunk.
+      // Hold that byte back so CRLF is normalised correctly across boundaries.
+      let pendingCr = false
 
       const handleEvent = (data: string) => {
         if (data === '[DONE]') return
@@ -404,26 +407,46 @@ export class GeminiWebApi {
         }
       }
 
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { value, done } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, '\n')
-        let idx: number
-        while ((idx = buffer.indexOf('\n\n')) !== -1) {
-          const rawEvent = buffer.slice(0, idx)
-          buffer = buffer.slice(idx + 2)
-          const lines = rawEvent.split('\n')
-          const data = lines
-            .filter((l) => l.startsWith('data:'))
-            .map((l) => l.slice(5).trimStart())
-            .join('\n')
-          if (data) handleEvent(data)
+      try {
+        while (true) {
+          const { value, done } = await reader.read()
+          if (done) break
+          let text = decoder.decode(value, { stream: true })
+          if (pendingCr) {
+            text = `\r${text}`
+            pendingCr = false
+          }
+          if (text.endsWith('\r')) {
+            pendingCr = true
+            text = text.slice(0, -1)
+          }
+          buffer = `${buffer}${text.replace(/\r\n/g, '\n')}`
+          let idx: number
+          while ((idx = buffer.indexOf('\n\n')) !== -1) {
+            const rawEvent = buffer.slice(0, idx)
+            buffer = buffer.slice(idx + 2)
+            const lines = rawEvent.split('\n')
+            const data = lines
+              .filter((l) => l.startsWith('data:'))
+              .map((l) => l.slice(5).trimStart())
+              .join('\n')
+            if (data) handleEvent(data)
+          }
+        }
+        // flush trailing event without terminating blank line
+        const rest = buffer.trim()
+        if (rest.startsWith('data:')) handleEvent(rest.slice(5).trim())
+      } finally {
+        // Always release the stream: on success we are done reading, and on a
+        // mid-stream error (upstream error chunk, abort, network drop) this
+        // cancels the reader so the underlying connection is torn down instead
+        // of leaking until GC.
+        try {
+          await reader.cancel()
+        } catch {
+          /* the reader may already be closed or errored */
         }
       }
-      // flush trailing event without terminating blank line
-      const rest = buffer.trim()
-      if (rest.startsWith('data:')) handleEvent(rest.slice(5).trim())
 
       if (!sawData && !full) {
         throw new ApiError('invalid_response', 'Empty stream', 'The server closed the stream without sending any data.')

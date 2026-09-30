@@ -45,8 +45,9 @@ export function PromptLibraryPanel({ embedded }: { embedded?: boolean }) {
 
   const use = (p: SavedPrompt) => {
     insert(p.text)
+    // The standalone dialog closes so you can use the composer right away;
+    // the panel embedded in Settings stays open for browsing.
     if (!embedded) closeDialog()
-    else closeDialog()
     toast.success('Prompt inserted')
   }
 

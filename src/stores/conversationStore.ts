@@ -3,7 +3,7 @@ import { db } from '@/services/db'
 import { geminiWebApi, type ChatMessageInput } from '@/services/geminiWebApi'
 import { ApiError, isAbortError, normalizeError } from '@/services/errors'
 import { shouldSendSamplingParams, shouldSendSystemMessage, shouldTryStreaming } from '@/services/capabilities'
-import type { Attachment, Conversation, GlassGemExportConversation, Message, MessageVersion } from '@/types'
+import type { Attachment, Conversation, GlassGemExportConversation, Message, MessageStatus, MessageVersion } from '@/types'
 import { previewFromContent, titleFromMessage, uid } from '@/lib/utils'
 import { clearDrafts, deleteDraft } from '@/services/drafts'
 import { useSettings, selectApiConfig } from './settingsStore'
@@ -43,6 +43,7 @@ interface ConversationStore {
   sendMessage: (content: string, opts?: { conversationId?: string; attachments?: Attachment[] }) => Promise<void>
   regenerate: (assistantMessageId: string) => Promise<void>
   editAndResend: (messageId: string, newContent: string) => Promise<void>
+  continueMessage: (assistantMessageId: string) => Promise<void>
   deleteMessage: (messageId: string) => Promise<void>
   stopGeneration: (conversationId?: string) => void
   setEditing: (messageId: string | null) => void
@@ -76,6 +77,18 @@ export const useConversations = create<ConversationStore>()((set, get) => ({
   /* ---------------- loading ---------------- */
 
   load: async () => {
+    // Reap messages that were still in flight when the app last closed (tab
+    // closed mid-generation, crash, reload): their stream can never finish,
+    // so they would spin forever. Keep any partial text and mark 'stopped'.
+    const stale = await db.messages.where('status').anyOf([...IN_FLIGHT_STATUSES]).toArray()
+    if (stale.length) {
+      await db.transaction('rw', db.messages, async () => {
+        for (const m of stale) {
+          const fixed = withSyncedActiveVersion({ ...m, status: 'stopped', updatedAt: Date.now() })
+          await db.messages.put(fixed)
+        }
+      })
+    }
     const list = await db.conversations.toArray()
     set({ conversations: sortConversations(list), loaded: true })
     const lastActive = localStorage.getItem('glassgem.activeConversation')
@@ -351,9 +364,25 @@ export const useConversations = create<ConversationStore>()((set, get) => ({
     if (!msg?.versions?.length) return
     const i = Math.max(0, Math.min(index, msg.versions.length - 1))
     const v = msg.versions[i]
-    const updated: Message = { ...msg, activeVersion: i, content: v.content, usage: v.usage, model: v.model, latencyMs: v.latencyMs, status: v.status, error: v.error }
+    const updated: Message = { ...msg, activeVersion: i, content: v.content, usage: v.usage, model: v.model, latencyMs: v.latencyMs, status: v.status, error: v.error, finishReason: v.finishReason }
     await db.messages.put(updated)
     set((s) => ({ messages: s.messages.map((m) => (m.id === messageId ? updated : m)) }))
+  },
+
+  continueMessage: async (assistantMessageId) => {
+    const conversationId = get().activeId
+    if (!conversationId || get().generating[conversationId]) return
+    const messages = get().messages
+    const idx = messages.findIndex((m) => m.id === assistantMessageId)
+    if (idx === -1) return
+    const target = messages[idx]
+    if (target.role !== 'assistant' || !target.content.trim()) return
+    if (target.conversationId !== conversationId) return
+    const conv = get().conversations.find((c) => c.id === conversationId)
+    // The truncated answer is replayed as the assistant's own words followed
+    // by a continuation instruction — no visible filler turn is added.
+    const apiOverride = buildContinueMessages(messages, assistantMessageId, CONTINUE_INSTRUCTION, conv?.systemPrompt)
+    await runAssistantTurn(conversationId, messages, set, get, { apiOverride })
   },
 
   retryLast: async () => {
@@ -419,7 +448,7 @@ async function runAssistantTurn(
   history: Message[],
   set: Set,
   get: Get,
-  opts: { replaceMessageId?: string } = {},
+  opts: { replaceMessageId?: string; apiOverride?: ChatMessageInput[] } = {},
 ) {
   const settings = useSettings.getState()
   const connection = useConnection.getState()
@@ -438,7 +467,7 @@ async function runAssistantTurn(
       : [{ id: uid('ver'), content: existing.content, createdAt: existing.createdAt, model: existing.model, usage: existing.usage, latencyMs: existing.latencyMs, status: existing.status, error: existing.error }]
     const newVersion: MessageVersion = { id: uid('ver'), content: '', createdAt: Date.now(), model, status: 'pending' }
     versions.push(newVersion)
-    assistant = { ...existing, content: '', status: 'pending', error: undefined, usage: undefined, latencyMs: undefined, model, versions, activeVersion: versions.length - 1, updatedAt: Date.now() }
+    assistant = { ...existing, content: '', status: 'pending', error: undefined, usage: undefined, latencyMs: undefined, finishReason: undefined, model, versions, activeVersion: versions.length - 1, updatedAt: Date.now() }
   } else {
     const lastOrder = history.length ? history[history.length - 1].order : -1
     assistant = { id: uid('msg'), conversationId, role: 'assistant', content: '', createdAt: Date.now(), status: 'pending', order: lastOrder + 1, model }
@@ -451,26 +480,16 @@ async function runAssistantTurn(
   set((s) => ({ generating: { ...s.generating, [conversationId]: requestId } }))
 
   const controller = new AbortController()
-  const apiMessages = buildApiMessages(history, conv?.systemPrompt)
+  const apiMessages = opts.apiOverride ?? buildApiMessages(history, conv?.systemPrompt)
+  // Streaming partial-text checkpointing (crash resilience).
+  const STREAM_CHECKPOINT_MS = 1500
+  let lastStreamCheckpoint = performance.now()
   const params = shouldSendSamplingParams(connection.capabilities, settings.enableSamplingParams) ? settings.chatParams : undefined
   const streaming = useStreaming.getState()
 
   const finalize = async (patch: Partial<Message>) => {
     const current = get().messages.find((m) => m.id === assistant.id) ?? assistant
-    const merged: Message = { ...current, ...patch, updatedAt: Date.now() }
-    if (merged.versions?.length && merged.activeVersion != null) {
-      const versions = [...merged.versions]
-      versions[merged.activeVersion] = {
-        ...versions[merged.activeVersion],
-        content: merged.content,
-        usage: merged.usage,
-        model: merged.model,
-        latencyMs: merged.latencyMs,
-        status: merged.status,
-        error: merged.error,
-      }
-      merged.versions = versions
-    }
+    const merged = withSyncedActiveVersion({ ...current, ...patch, updatedAt: Date.now() })
     streaming.clear(assistant.id)
     await persistMessage(merged, set, get)
     const preview = merged.content ? previewFromContent(merged.content) : undefined
@@ -494,7 +513,19 @@ async function runAssistantTurn(
                 set((s) => ({ messages: s.messages.map((m) => (m.id === assistant.id ? { ...m, status: 'streaming' } : m)) }))
               }
             },
-            onToken: (_delta, full) => streaming.push(assistant.id, full),
+            onToken: (_delta, full) => {
+              streaming.push(assistant.id, full)
+              // Checkpoint the partial answer to IndexedDB every so often so a
+              // crash or reload mid-stream keeps the text received so far (the
+              // startup sweep then marks the message 'stopped' instead of
+              // losing it). The on-screen rendering still comes from the
+              // in-memory streaming buffer — this write is invisible to the UI.
+              const now = performance.now()
+              if (now - lastStreamCheckpoint > STREAM_CHECKPOINT_MS) {
+                lastStreamCheckpoint = now
+                void db.messages.put(withSyncedActiveVersion({ ...assistant, content: full, status: 'streaming', model, updatedAt: Date.now() }))
+              }
+            },
           },
           requestId,
         )
@@ -517,7 +548,7 @@ async function runAssistantTurn(
     }
 
     const latencyMs = performance.now() - started
-    await finalize({ content: result.content, status: 'complete', usage: result.usage, model: result.model ?? model, latencyMs, error: undefined })
+    await finalize({ content: result.content, status: 'complete', usage: result.usage, model: result.model ?? model, latencyMs, error: undefined, finishReason: result.finishReason })
     useConnection.getState().noteSuccess(latencyMs)
   } catch (err) {
     const partial = streaming.get(assistant.id)
@@ -543,6 +574,49 @@ async function runAssistantTurn(
     })
   }
 }
+
+/** Messages that were in flight when the app died and can never finish. */
+export const IN_FLIGHT_STATUSES: readonly MessageStatus[] = ['pending', 'streaming']
+
+export function isInFlightStatus(status: Message['status']): boolean {
+  return status === 'pending' || status === 'streaming'
+}
+
+/** Copies the message's top-level state into its active version entry. */
+export function withSyncedActiveVersion(msg: Message): Message {
+  if (!msg.versions?.length || msg.activeVersion == null) return msg
+  const versions = [...msg.versions]
+  versions[msg.activeVersion] = {
+    ...versions[msg.activeVersion],
+    content: msg.content,
+    usage: msg.usage,
+    model: msg.model,
+    latencyMs: msg.latencyMs,
+    status: msg.status,
+    error: msg.error,
+    finishReason: msg.finishReason,
+  }
+  return { ...msg, versions }
+}
+
+/**
+ * Builds the request that asks the model to continue a response that was cut
+ * off by a token limit (`finish_reason: "length"`). The truncated answer is
+ * replayed as the assistant's own words followed by an explicit instruction,
+ * which is the most reliable continuation pattern for OpenAI-style APIs.
+ */
+export function buildContinueMessages(history: Message[], assistantId: string, instruction: string, systemPrompt?: string): ChatMessageInput[] {
+  const idx = history.findIndex((m) => m.id === assistantId)
+  if (idx === -1) return buildApiMessages(history, systemPrompt)
+  // History up to and including the truncated answer, then the instruction.
+  // (The truncated answer must appear exactly once — as the assistant's own
+  // previous turn — followed by an explicit user "continue" request.)
+  const api = buildApiMessages(history.slice(0, idx + 1), systemPrompt)
+  api.push({ role: 'user', content: instruction })
+  return api
+}
+
+const CONTINUE_INSTRUCTION = 'Continue your previous answer exactly where it stopped — do not repeat any earlier text, do not add an introduction.'
 
 export function parseMessageError(m: Message): { title: string; message: string; hint?: string; kind: string; status?: number } | null {
   if (!m.error) return null

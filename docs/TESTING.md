@@ -35,6 +35,8 @@ two tiny helpers and no external test framework:
 | `drafts.test.ts` | Per-conversation draft persistence, caps, attachment drafts, bulk clearing |
 | `capabilities.test.ts` | Capability decision helpers (stream/system/sampling gating) |
 | `settingsStore.test.ts` | Request-timeout clamping and the settings → API-config mapping |
+| `conversationStore.test.ts` | In-flight status detection and the *Continue generating* request builder (system prompt kept, broken messages skipped, no duplicated turns) |
+| `streamClient.test.ts` | The real streaming client against a local SSE server: CRLF delimiters split across chunk boundaries, mid-stream error chunks (partial text kept, connection released), `finish_reason: "length"` |
 | `ensure-web2api.test.ts` | Backend auto-installer: port parsing, asset names, PID/log path resolution |
 | `desktop-dev.test.ts` | Desktop launcher argument handling |
 

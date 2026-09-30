@@ -38,6 +38,16 @@ each would meaningfully move the product forward. Contributions welcome.
 - **Per-conversation sampling overrides** — temperature/top_p are global
   today; storing `chatParams` on the conversation would match how model and
   system prompt already work.
+- **Regenerate with a different model** — the regenerate action replays with
+  the conversation's current model; an override picker on the regenerate
+  control (e.g. shift-click or a small dropdown) would make A/B-comparing
+  models on the same prompt effortless. `regenerate()` already captures the
+  model per version, so the data model needs no change.
+- **Jump-to-message from search** — search hits already carry the matching
+  `messageId`; the results could deep-link into the conversation, scroll to
+  the message and flash-highlight it.
+- **Message-level usage roll-up** — a small "n messages · m tokens" summary
+  in the chat header, computed from the already-persisted per-message usage.
 
 ## Nice to have
 

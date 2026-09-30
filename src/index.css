@@ -486,6 +486,9 @@
   .thinking-dot:nth-child(2) { animation-delay: 0.16s; }
   .thinking-dot:nth-child(3) { animation-delay: 0.32s; }
 
+  /* Sidebar: a conversation is generating a response right now. */
+  .generating-dot { width: 6px; height: 6px; border-radius: 999px; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); animation: pulse-soft 1.2s ease-in-out infinite; }
+
   .skeleton {
     background: linear-gradient(90deg, var(--surface) 30%, var(--surface-2) 50%, var(--surface) 70%);
     background-size: 200% 100%;

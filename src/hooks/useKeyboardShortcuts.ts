@@ -28,9 +28,11 @@ export function useKeyboardShortcuts() {
         ui.dialog === 'settings' ? ui.closeDialog() : ui.openDialog('settings')
         return
       }
-      if (mod && key === '/') {
+      // Shift+'/' produces '?' on most keyboard layouts — treat both as the
+      // shortcut-help chord, and plain '/' as focus-composer.
+      if (mod && (key === '/' || key === '?')) {
         e.preventDefault()
-        if (e.shiftKey) {
+        if (e.shiftKey || key === '?') {
           ui.openDialog('shortcuts')
         } else {
           ui.closeDialog()

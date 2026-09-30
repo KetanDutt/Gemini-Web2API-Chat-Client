@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import { useSettings } from '@/stores/settingsStore'
 
 export function useTheme() {
@@ -32,9 +32,23 @@ export function useTheme() {
   }, [reduceMotion])
 }
 
+/** Subscribes to the OS colour scheme so callers re-render when it flips. */
+function usePrefersDark(): boolean {
+  return useSyncExternalStore(
+    (cb) => {
+      const mq = window.matchMedia('(prefers-color-scheme: dark)')
+      mq.addEventListener('change', cb)
+      return () => mq.removeEventListener('change', cb)
+    },
+    () => window.matchMedia('(prefers-color-scheme: dark)').matches,
+    () => false,
+  )
+}
+
 export function useIsDark(): boolean {
   const theme = useSettings((s) => s.theme)
+  const prefersDark = usePrefersDark()
   if (theme === 'dark') return true
   if (theme === 'light') return false
-  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
+  return prefersDark
 }

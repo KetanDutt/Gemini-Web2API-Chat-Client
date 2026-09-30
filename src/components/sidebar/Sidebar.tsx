@@ -19,6 +19,7 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
   const conversations = useConversations((s) => s.conversations)
   const activeId = useConversations((s) => s.activeId)
   const loaded = useConversations((s) => s.loaded)
+  const generating = useConversations((s) => s.generating)
   const setActive = useConversations((s) => s.setActive)
   const createConversation = useConversations((s) => s.createConversation)
   const renameConversation = useConversations((s) => s.renameConversation)
@@ -194,6 +195,7 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
                   conversation={r.conversation}
                   active={r.conversation.id === activeId}
                   renaming={renamingId === r.conversation.id}
+                  generating={!!generating[r.conversation.id]}
                   query={activeQuery}
                   snippet={r.snippet}
                   onSelect={handleSelect}
@@ -258,6 +260,7 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
                     conversation={c}
                     active={c.id === activeId}
                     renaming={renamingId === c.id}
+                    generating={!!generating[c.id]}
                     onSelect={handleSelect}
                     onRename={renameConversation}
                     onStartRename={setRenaming}

@@ -24,6 +24,10 @@ for setup and installation see the [README](../README.md).
   (everything after the edited message is replaced).
 - **Regenerate versions** — regenerating keeps previous answers and adds a
   *Response 1 / 3* switcher with ◀ ▶ controls.
+- **Continue generating** — when a response is cut off by the model's token
+  limit (`finish_reason: "length"`), a *Continue generating* chip appears
+  under the message. One click asks the model to pick up exactly where it
+  stopped; the continued answer is appended as a new response below.
 - **Timestamps, model, token usage & response time** — per message, each
   individually toggleable in Settings → Chat. Usage shows a prompt /
   completion / total breakdown on click.
@@ -58,8 +62,19 @@ for setup and installation see the [README](../README.md).
 - **Per-conversation model** — pick a model in the header or composer; each
   chat remembers its own. New chats start from the Settings → API default.
 - **Crash-proof drafts** — half-typed messages survive reloads, per
-  conversation. Drafts are removed when their conversation is deleted or
-  cleared.
+  conversation. The composer restores its draft immediately on startup (not
+  only after switching chats), so a reload while typing the very first
+  message never loses text. Drafts are removed when their conversation is
+  deleted or cleared.
+- **Live activity indicator** — a pulsing dot on a sidebar conversation shows
+  that a response is being generated in it, even while you browse other chats.
+- **Self-healing after crashes** — if the app closes while a response is
+  streaming, the half-finished message is marked *stopped* on the next start
+  instead of spinning forever. Streaming answers are checkpointed to local
+  storage every ~1.5 s, so even the text received before the crash survives.
+- **Tab title** — the browser/desktop window title mirrors the open
+  conversation (`"Deploying to Vercel · GlassGem"`), so multiple GlassGem
+  windows or tabs are easy to tell apart.
 
 ## Search
 

@@ -143,7 +143,17 @@ Composer.submit()
 
 Stopping generation aborts an `AbortController` tracked per request id inside
 the API client; the abort propagates through the proxy, which destroys the
-upstream connection.
+upstream connection. The SSE reader always cancels the response body stream
+when the turn ends — including on mid-stream errors — so a failing stream
+never leaves a dangling connection. SSE parsing is robust against servers
+that delimit events with CRLF, even when a chunk boundary falls between the
+`\r` and the `\n`.
+
+A response that ends with `finish_reason: "length"` (token cap) stores the
+reason on the message; the UI offers a one-click **Continue generating** that
+replays the conversation with the truncated answer as the assistant's own
+previous turn plus an explicit continuation instruction, and appends the
+continuation as a new response.
 
 ### Error handling
 
@@ -160,13 +170,22 @@ diagnostics instead of a white page.
 ### Persistence
 
 - **IndexedDB** (database `glassgem`, via Dexie): conversations, messages,
-  prompts. Message ordering uses a `[conversationId+order]` compound index.
+  prompts. Message ordering uses a `[conversationId+order]` compound index;
+  schema v2 adds a `status` index so in-flight messages can be found cheaply.
   Conversations carry lifecycle flags (`favorite`, `pinned`, `archived`);
   archived chats leave the main sidebar list but remain fully searchable and
   restorable from the dedicated *Archived* view.
+- **Startup sweep**: messages still `pending`/`streaming` when the app last
+  exited (tab closed mid-generation, crash) can never finish, so `load()`
+  marks them `stopped` (partial text kept) before the UI renders them — no
+  eternal spinners after a reload. To make that partial text real, streaming
+  answers are checkpointed to IndexedDB roughly every 1.5 s, so a crash loses
+  at most the last second or two of output.
 - **localStorage**: settings, sidebar state, onboarding flag, detected
   capabilities, composer drafts (versioned zustand persist keys, all prefixed
-  `glassgem.`).
+  `glassgem.`). The composer re-reads its draft from localStorage on mount,
+  so a reload never loses the text being typed — including the first message
+  of a brand-new chat.
 - Image attachments are stored as downscaled `data:` URLs inside the message
   record (max 1568px on the longest side) — see `src/lib/images.ts`.
 

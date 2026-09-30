@@ -33,7 +33,7 @@ export function Composer() {
   const openDialog = useUI((s) => s.openDialog)
   const isMobile = useIsMobile()
 
-  const [value, setValue] = useState('')
+  const [value, setValue] = useState(() => getDraft(activeId ?? '__new'))
   const [focused, setFocused] = useState(false)
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [reading, setReading] = useState(false)

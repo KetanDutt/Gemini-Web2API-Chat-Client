@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Popover from '@radix-ui/react-popover'
-import { AlertTriangle, Check, ChevronLeft, ChevronRight, Copy, Download, FileText, MoreHorizontal, Paperclip, Pencil, RefreshCw, Settings2, Sparkles, Trash2, Bug } from 'lucide-react'
+import { AlertTriangle, ArrowDownToLine, Check, ChevronLeft, ChevronRight, Copy, Download, FileText, MoreHorizontal, Paperclip, Pencil, RefreshCw, Settings2, Sparkles, Trash2, Bug } from 'lucide-react'
 import type { Message } from '@/types'
 import { cn, copyToClipboard, downloadFile, formatLatency, formatTime, modelLabel, timestampSlug } from '@/lib/utils'
 import { parseElicitations } from '@/lib/elicitations'
@@ -190,6 +190,7 @@ function UserMessage({ message, showTimestamps, generating }: Props) {
 function AssistantMessage({ message, showTimestamps, showUsage, showLatency, generating }: Props) {
   const streamed = useStreamingText(message.id)
   const regenerate = useConversations((s) => s.regenerate)
+  const continueMessage = useConversations((s) => s.continueMessage)
   const setActiveVersion = useConversations((s) => s.setActiveVersion)
   const deleteMessage = useConversations((s) => s.deleteMessage)
   const sendMessage = useConversations((s) => s.sendMessage)
@@ -240,6 +241,20 @@ function AssistantMessage({ message, showTimestamps, showUsage, showLatency, gen
             {display && <Markdown content={display} streaming={message.status === 'streaming'} />}
             {message.status === 'stopped' && <p className="mt-2 text-[12.5px] italic text-fg-subtle">Generation stopped.</p>}
           </>
+        )}
+
+        {/* The server hit its token limit mid-answer → offer a one-click continuation. */}
+        {!isActive && message.finishReason === 'length' && display && (
+          <div className="mt-2">
+            <button
+              className="pill pill-interactive h-7 px-3 text-[12.5px]"
+              onClick={() => void continueMessage(message.id)}
+              disabled={generating}
+              title="The response reached its token limit. Ask the model to continue from where it stopped."
+            >
+              <ArrowDownToLine size={12} /> Continue generating
+            </button>
+          </div>
         )}
 
         {err && (
