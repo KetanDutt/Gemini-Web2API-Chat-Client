@@ -217,7 +217,43 @@ rest.
 ## Design system
 
 All visual decisions live as tokens in `src/index.css` (`@theme` block +
-`:root` / `.dark` palettes): radii, blur, durations, easings, z-layers, and
-semantic colours. Components consume tokens — they never invent values.
-Density modes (compact/comfortable/spacious) and reduced-motion are token
-driven too.
+`:root` / `.dark` palettes): radii, blur levels, per-material glass
+saturation (`--glass-sat-*`), durations, easings, z-layers, and semantic
+colours. Components consume tokens — they never invent values. Density modes
+(compact/comfortable/spacious) and reduced-motion are token driven too.
+
+### Material layers
+
+The Liquid Glass system is a strict hierarchy, and every floating surface
+picks exactly one strength:
+
+| Class | Layer | Used for | Treatment |
+| --- | --- | --- | --- |
+| `.glass-sm` | secondary | sidebar, chat surface, light panels | 12px blur, 140% saturation |
+| `.glass-md` | primary | composer, drawers, scrolled chat header | 20px blur, 160% saturation |
+| `.glass-lg` | elevated | dialogs, onboarding | 32px blur, 170% saturation |
+| `.glass-float` | floating | menus, popovers, tooltips, toasts | 48px blur, 180% saturation |
+
+Each material composes a translucent background, `backdrop-filter` blur +
+saturation, a hairline outer border, an inset 1px edge highlight, a masked
+top-light gradient (the "edge light"), and one ambient shadow token
+(`--shadow-sm/md/lg/float`) that stays wide and faint — depth without weight.
+Text and controls are never translucent.
+
+### Motion
+
+Durations are tokenised (140/220/320/380 ms — micro, standard, structural,
+modal) with four easing curves (standard, out, spring, in). Entrances run
+through shared keyframes (`fade-in`, `rise`, `pop`, `dialog-in`,
+`palette-in`); exits are the same animations reversed and faster. Radix
+state hooks (`motion-pop`, `motion-fade`, `motion-dialog`) apply them
+declaratively; `prefers-reduced-motion` and the in-app *Reduce motion*
+setting flatten everything to near-zero duration.
+
+### Adaptive & accessible rendering
+
+- `prefers-contrast: more` strengthens hairlines, glass edges and secondary
+  text without changing the design for everyone else.
+- `prefers-reduced-motion: reduce` (or the in-app setting) stops the ambient
+  background drift, status pulses and all transitions.
+- Browsers without `backdrop-filter` fall back to opaque surfaces.

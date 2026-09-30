@@ -80,7 +80,7 @@ export function PromptLibraryPanel({ embedded }: { embedded?: boolean }) {
             </label>
             <label className="block">
               <span className="mb-1 block text-[12.5px] font-medium">Category</span>
-              <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value as PromptCategory })} className="field h-10 appearance-none py-0">
+              <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value as PromptCategory })} className="field h-10 cursor-pointer py-0">
                 {PROMPT_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
                     {c}

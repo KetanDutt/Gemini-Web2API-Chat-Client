@@ -138,8 +138,8 @@ function UserMessage({ message, showTimestamps, generating }: Props) {
         </div>
       ) : (
         <div
-          className="relative max-w-[85%] rounded-(--radius-xl) rounded-br-(--radius-xs) px-4 py-2.5 text-[15px] leading-relaxed shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_8px_24px_-12px_var(--accent-ring)] sm:max-w-[72%]"
-          style={{ background: 'var(--user-bubble)', color: 'var(--user-bubble-fg)', fontSize: 'var(--msg-font-size)' }}
+          className="user-bubble relative max-w-[85%] rounded-(--radius-xl) rounded-br-(--radius-xs) px-4 py-2.5 text-[15px] leading-relaxed sm:max-w-[72%]"
+          style={{ fontSize: 'var(--msg-font-size)' }}
         >
           {message.attachments?.length ? (
             <div className={cn('flex flex-wrap gap-1.5', message.content.trim() && 'mb-2')}>

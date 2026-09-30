@@ -4,6 +4,44 @@ All notable changes to GlassGem are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0]
+
+### Changed — Liquid Glass design-system refinement
+
+A dedicated visual/interaction polish pass across the whole app. No features,
+flows, data or logic changed — only how it looks, moves and feels.
+
+- **Material system** — glass blur/saturation strengths are now tokenised per
+  layer (`--glass-sat-sm/md/lg/float`); every ambient shadow was re-tuned to a
+  two-layer, wide-and-faint profile so depth reads as *hovering*, not *casting*.
+- **Calmer background** — the ambient colour fields dropped ~30% in intensity
+  and now drift over 90 s with smaller translation; the background stays
+  invisible until a glass surface moves across it. The drift also stops
+  entirely under reduced motion.
+- **First-class dark glass** — dark-mode sidebar/composer surfaces gained
+  presence (0.045/0.065 white) with a stronger top edge-light, so panels read
+  as glass instead of disappearing into the background.
+- **Buttons** — the primary button is now top-lit (subtle gradient + inner
+  highlight) with a hover lift and a slightly deeper accent shadow; press
+  compression was softened app-wide (scale 0.975, tiny downward settle) and
+  icon-button presses from 0.92 → 0.94.
+- **User bubble** — rebuilt as a shared `.user-bubble` material: faint
+  top-lit accent gradient, inset edge light, tinted ambient shadow, and a
+  readable light selection colour for selected text.
+- **Thinking indicator** — "Gemini is thinking…" is now a quiet glass capsule
+  instead of a bare dot row.
+- **Scroll-aware chat header** — background, hairline *and* backdrop blur now
+  animate together as one continuous material change (the blur used to snap).
+- **Welcome hero** — the title is fluid (`clamp()`, up to 36px), tighter
+  tracked, optically balanced; the sidebar list fades in on load.
+- **Forms** — inputs brighten their surface on hover (previously only the
+  border moved), and the prompt category select regained its dropdown chevron
+  (`appearance-none` had stripped it with no replacement).
+- **Typography** — all headings now use `text-wrap: balance` for even lines.
+- **Accessibility** — new `prefers-contrast: more` support strengthens
+  hairlines, glass edges and secondary text; reduced-motion handling now also
+  covers the generating dot and ambient drift explicitly.
+
 ## [1.3.0]
 
 ### Added
