@@ -27,6 +27,7 @@ export interface MessageVersion {
   latencyMs?: number
   status: MessageStatus
   error?: string
+  finishReason?: string
 }
 
 export interface Message {
@@ -48,6 +49,8 @@ export interface Message {
   /** Index of the currently displayed version, when versions exist. */
   activeVersion?: number
   attachments?: Attachment[]
+  /** OpenAI finish_reason of the active version ('stop' | 'length' | …). */
+  finishReason?: string
 }
 
 export interface Conversation {

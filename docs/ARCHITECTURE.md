@@ -143,7 +143,17 @@ Composer.submit()
 
 Stopping generation aborts an `AbortController` tracked per request id inside
 the API client; the abort propagates through the proxy, which destroys the
-upstream connection.
+upstream connection. The SSE reader always cancels the response body stream
+when the turn ends — including on mid-stream errors — so a failing stream
+never leaves a dangling connection. SSE parsing is robust against servers
+that delimit events with CRLF, even when a chunk boundary falls between the
+`\r` and the `\n`.
+
+A response that ends with `finish_reason: "length"` (token cap) stores the
+reason on the message; the UI offers a one-click **Continue generating** that
+replays the conversation with the truncated answer as the assistant's own
+previous turn plus an explicit continuation instruction, and appends the
+continuation as a new response.
 
 ### Error handling
 
@@ -160,13 +170,22 @@ diagnostics instead of a white page.
 ### Persistence
 
 - **IndexedDB** (database `glassgem`, via Dexie): conversations, messages,
-  prompts. Message ordering uses a `[conversationId+order]` compound index.
+  prompts. Message ordering uses a `[conversationId+order]` compound index;
+  schema v2 adds a `status` index so in-flight messages can be found cheaply.
   Conversations carry lifecycle flags (`favorite`, `pinned`, `archived`);
   archived chats leave the main sidebar list but remain fully searchable and
   restorable from the dedicated *Archived* view.
+- **Startup sweep**: messages still `pending`/`streaming` when the app last
+  exited (tab closed mid-generation, crash) can never finish, so `load()`
+  marks them `stopped` (partial text kept) before the UI renders them — no
+  eternal spinners after a reload. To make that partial text real, streaming
+  answers are checkpointed to IndexedDB roughly every 1.5 s, so a crash loses
+  at most the last second or two of output.
 - **localStorage**: settings, sidebar state, onboarding flag, detected
   capabilities, composer drafts (versioned zustand persist keys, all prefixed
-  `glassgem.`).
+  `glassgem.`). The composer re-reads its draft from localStorage on mount,
+  so a reload never loses the text being typed — including the first message
+  of a brand-new chat.
 - Image attachments are stored as downscaled `data:` URLs inside the message
   record (max 1568px on the longest side) — see `src/lib/images.ts`.
 
@@ -198,7 +217,43 @@ rest.
 ## Design system
 
 All visual decisions live as tokens in `src/index.css` (`@theme` block +
-`:root` / `.dark` palettes): radii, blur, durations, easings, z-layers, and
-semantic colours. Components consume tokens — they never invent values.
-Density modes (compact/comfortable/spacious) and reduced-motion are token
-driven too.
+`:root` / `.dark` palettes): radii, blur levels, per-material glass
+saturation (`--glass-sat-*`), durations, easings, z-layers, and semantic
+colours. Components consume tokens — they never invent values. Density modes
+(compact/comfortable/spacious) and reduced-motion are token driven too.
+
+### Material layers
+
+The Liquid Glass system is a strict hierarchy, and every floating surface
+picks exactly one strength:
+
+| Class | Layer | Used for | Treatment |
+| --- | --- | --- | --- |
+| `.glass-sm` | secondary | sidebar, chat surface, light panels | 12px blur, 140% saturation |
+| `.glass-md` | primary | composer, drawers, scrolled chat header | 20px blur, 160% saturation |
+| `.glass-lg` | elevated | dialogs, onboarding | 32px blur, 170% saturation |
+| `.glass-float` | floating | menus, popovers, tooltips, toasts | 48px blur, 180% saturation |
+
+Each material composes a translucent background, `backdrop-filter` blur +
+saturation, a hairline outer border, an inset 1px edge highlight, a masked
+top-light gradient (the "edge light"), and one ambient shadow token
+(`--shadow-sm/md/lg/float`) that stays wide and faint — depth without weight.
+Text and controls are never translucent.
+
+### Motion
+
+Durations are tokenised (140/220/320/380 ms — micro, standard, structural,
+modal) with four easing curves (standard, out, spring, in). Entrances run
+through shared keyframes (`fade-in`, `rise`, `pop`, `dialog-in`,
+`palette-in`); exits are the same animations reversed and faster. Radix
+state hooks (`motion-pop`, `motion-fade`, `motion-dialog`) apply them
+declaratively; `prefers-reduced-motion` and the in-app *Reduce motion*
+setting flatten everything to near-zero duration.
+
+### Adaptive & accessible rendering
+
+- `prefers-contrast: more` strengthens hairlines, glass edges and secondary
+  text without changing the design for everyone else.
+- `prefers-reduced-motion: reduce` (or the in-app setting) stops the ambient
+  background drift, status pulses and all transitions.
+- Browsers without `backdrop-filter` fall back to opaque surfaces.

@@ -19,6 +19,7 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
   const conversations = useConversations((s) => s.conversations)
   const activeId = useConversations((s) => s.activeId)
   const loaded = useConversations((s) => s.loaded)
+  const generating = useConversations((s) => s.generating)
   const setActive = useConversations((s) => s.setActive)
   const createConversation = useConversations((s) => s.createConversation)
   const renameConversation = useConversations((s) => s.renameConversation)
@@ -194,6 +195,7 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
                   conversation={r.conversation}
                   active={r.conversation.id === activeId}
                   renaming={renamingId === r.conversation.id}
+                  generating={!!generating[r.conversation.id]}
                   query={activeQuery}
                   snippet={r.snippet}
                   onSelect={handleSelect}
@@ -248,30 +250,33 @@ export function Sidebar({ onNavigate, isDrawer }: { onNavigate?: () => void; isD
             />
           )
         ) : (
-          grouped.map(({ group, items }) => (
-            <section key={group} className="mb-2">
-              <h3 className="eyebrow sticky top-0 z-(--z-content) px-2.5 pb-1 pt-2 backdrop-blur-(--blur-sm)">{group}</h3>
-              <div className="space-y-0.5">
-                {items.map((c) => (
-                  <ConversationItem
-                    key={c.id}
-                    conversation={c}
-                    active={c.id === activeId}
-                    renaming={renamingId === c.id}
-                    onSelect={handleSelect}
-                    onRename={renameConversation}
-                    onStartRename={setRenaming}
-                    onFavorite={toggleFavorite}
-                    onPin={togglePinned}
-                    onArchive={handleArchive}
-                    onDelete={requestDelete}
-                    onDuplicate={handleDuplicate}
-                    onExport={handleExport}
-                  />
-                ))}
-              </div>
-            </section>
-          ))
+          <div className="enter-fade">
+            {grouped.map(({ group, items }) => (
+              <section key={group} className="mb-2">
+                <h3 className="eyebrow sticky top-0 z-(--z-content) px-2.5 pb-1 pt-2 backdrop-blur-(--blur-sm)">{group}</h3>
+                <div className="space-y-0.5">
+                  {items.map((c) => (
+                    <ConversationItem
+                      key={c.id}
+                      conversation={c}
+                      active={c.id === activeId}
+                      renaming={renamingId === c.id}
+                      generating={!!generating[c.id]}
+                      onSelect={handleSelect}
+                      onRename={renameConversation}
+                      onStartRename={setRenaming}
+                      onFavorite={toggleFavorite}
+                      onPin={togglePinned}
+                      onArchive={handleArchive}
+                      onDelete={requestDelete}
+                      onDuplicate={handleDuplicate}
+                      onExport={handleExport}
+                    />
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
         )}
       </nav>
     </div>

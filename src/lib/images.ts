@@ -81,18 +81,24 @@ export async function fileToAttachment(file: File): Promise<Attachment> {
   if (file.size <= PASSTHROUGH_BYTES) {
     // Small file: check its dimensions, but keep the original bytes when they fit.
     const bitmap = await loadBitmap(file)
-    const w = bitmap.width
-    const h = bitmap.height
-    if (Math.max(w, h) <= MAX_IMAGE_DIMENSION) {
-      dataUrl = await readAsDataUrl(file)
-    } else {
-      dataUrl = downscaleToDataUrl(bitmap, file.type)
+    try {
+      const w = bitmap.width
+      const h = bitmap.height
+      if (Math.max(w, h) <= MAX_IMAGE_DIMENSION) {
+        dataUrl = await readAsDataUrl(file)
+      } else {
+        dataUrl = downscaleToDataUrl(bitmap, file.type)
+      }
+    } finally {
+      if ('close' in bitmap) bitmap.close()
     }
-    if ('close' in bitmap) bitmap.close()
   } else {
     const bitmap = await loadBitmap(file)
-    dataUrl = downscaleToDataUrl(bitmap, file.type)
-    if ('close' in bitmap) bitmap.close()
+    try {
+      dataUrl = downscaleToDataUrl(bitmap, file.type)
+    } finally {
+      if ('close' in bitmap) bitmap.close()
+    }
   }
 
   return {

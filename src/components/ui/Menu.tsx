@@ -1,5 +1,4 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
-import { Check } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { cn } from '@/lib/utils'
 
@@ -40,19 +39,4 @@ export function MenuItem({ children, onSelect, icon, danger, shortcut, disabled,
   )
 }
 
-export function MenuCheckItem({ children, checked, onCheckedChange, description }: { children: ReactNode; checked: boolean; onCheckedChange: (v: boolean) => void; description?: ReactNode }) {
-  return (
-    <DropdownMenu.CheckboxItem className="menu-item" checked={checked} onCheckedChange={onCheckedChange}>
-      <span className="flex w-4 items-center justify-center">
-        <Check size={14} className={cn('text-accent transition-[opacity,transform] duration-(--duration-fast) ease-(--ease-spring)', checked ? 'scale-100 opacity-100' : 'scale-50 opacity-0')} />
-      </span>
-      <span className="flex-1">
-        <span className="block truncate">{children}</span>
-        {description && <span className="block text-[11.5px] leading-snug text-fg-subtle">{description}</span>}
-      </span>
-    </DropdownMenu.CheckboxItem>
-  )
-}
-
 export const MenuSeparator = () => <DropdownMenu.Separator className="menu-sep" />
-export const MenuLabel = ({ children }: { children: ReactNode }) => <DropdownMenu.Label className="menu-label">{children}</DropdownMenu.Label>

@@ -4,6 +4,102 @@ All notable changes to GlassGem are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project
 adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0]
+
+### Changed — Liquid Glass design-system refinement
+
+A dedicated visual/interaction polish pass across the whole app. No features,
+flows, data or logic changed — only how it looks, moves and feels.
+
+- **Material system** — glass blur/saturation strengths are now tokenised per
+  layer (`--glass-sat-sm/md/lg/float`); every ambient shadow was re-tuned to a
+  two-layer, wide-and-faint profile so depth reads as *hovering*, not *casting*.
+- **Calmer background** — the ambient colour fields dropped ~30% in intensity
+  and now drift over 90 s with smaller translation; the background stays
+  invisible until a glass surface moves across it. The drift also stops
+  entirely under reduced motion.
+- **First-class dark glass** — dark-mode sidebar/composer surfaces gained
+  presence (0.045/0.065 white) with a stronger top edge-light, so panels read
+  as glass instead of disappearing into the background.
+- **Buttons** — the primary button is now top-lit (subtle gradient + inner
+  highlight) with a hover lift and a slightly deeper accent shadow; press
+  compression was softened app-wide (scale 0.975, tiny downward settle) and
+  icon-button presses from 0.92 → 0.94.
+- **User bubble** — rebuilt as a shared `.user-bubble` material: faint
+  top-lit accent gradient, inset edge light, tinted ambient shadow, and a
+  readable light selection colour for selected text.
+- **Thinking indicator** — "Gemini is thinking…" is now a quiet glass capsule
+  instead of a bare dot row.
+- **Scroll-aware chat header** — background, hairline *and* backdrop blur now
+  animate together as one continuous material change (the blur used to snap).
+- **Welcome hero** — the title is fluid (`clamp()`, up to 36px), tighter
+  tracked, optically balanced; the sidebar list fades in on load.
+- **Forms** — inputs brighten their surface on hover (previously only the
+  border moved), and the prompt category select regained its dropdown chevron
+  (`appearance-none` had stripped it with no replacement).
+- **Typography** — all headings now use `text-wrap: balance` for even lines.
+- **Accessibility** — new `prefers-contrast: more` support strengthens
+  hairlines, glass edges and secondary text; reduced-motion handling now also
+  covers the generating dot and ambient drift explicitly.
+
+## [1.3.0]
+
+### Added
+
+- **Continue generating** — responses cut off by the model's token limit
+  (`finish_reason: "length"`) now show a *Continue generating* chip. One
+  click asks the model to pick up exactly where it stopped, appending the
+  continuation as a new response. The finish reason is persisted per message
+  (and per regenerate version), and the mock server can simulate the limit
+  with the `truncate` trigger word.
+- **Live activity indicator in the sidebar** — a pulsing dot marks
+  conversations that are currently generating a response, visible even while
+  you browse other chats.
+- **Conversation-aware window title** — the browser/desktop tab now reads
+  `"<conversation> · GlassGem"`, making multiple GlassGem windows easy to
+  tell apart.
+
+### Fixed
+
+- **Half-finished responses no longer spin forever — or vanish.** If the app
+  closed while a response was streaming (tab closed, crash, reload), the
+  orphaned `pending`/`streaming` message showed an eternal thinking indicator
+  on the next start, and since streaming text lived only in memory, the
+  partial answer was lost. Messages in flight at boot are now reaped to
+  *stopped* via a cheap indexed query (the messages table carries a new
+  `status` index — IndexedDB schema v2, upgraded in place), and streaming
+  answers are checkpointed to IndexedDB every ~1.5 s so a crash keeps
+  everything the model managed to say.
+- **`Ctrl+Shift+/` never opened the shortcut help.** With Shift held,
+  keyboards produce `?`, so the advertised chord never matched. Both `?` and
+  `/` variants now work.
+- **Composer drafts are restored on startup.** The persisted draft was only
+  re-read when *switching* conversations, so reloading while typing the first
+  message of a brand-new chat lost the text despite the "crash-proof draft"
+  promise. The draft now loads on mount, for the restored conversation and
+  the not-yet-created `__new` chat alike.
+- **Mid-stream errors no longer leak the connection.** When an upstream error
+  chunk (or any read error) aborted a stream, the response body reader was
+  never cancelled and the underlying HTTP connection stayed open until GC.
+  The reader is now always cancelled/released when the turn ends.
+- **SSE events split across a CRLF chunk boundary parsed incorrectly.** A
+  network chunk ending in a bare `\r` (its `\n` arriving in the next chunk)
+  kept the carriage return inside the event line; the trailing `\r` is now
+  buffered so CRLF is normalised correctly.
+- **Inserting a prompt from Settings → Prompts closed the whole Settings
+  dialog.** The embedded prompt panel now stays open; only the standalone
+  dialog closes.
+- The toast/theme no longer goes stale when the OS switches between light and
+  dark while GlassGem follows the system theme.
+
+### Improved
+
+- Streaming auto-scroll does no layout work while the tab is hidden.
+- Removed dead code (unused `Skeleton` components, menu primitives,
+  `debounce`/`isSupported` helpers).
+- New unit tests for in-flight detection and the continue-request builder
+  (93 tests total, all green); docs updated throughout.
+
 ## [1.2.0]
 
 ### Added

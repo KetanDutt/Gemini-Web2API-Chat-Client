@@ -397,10 +397,13 @@ A repeatable GitHub Actions workflow is included at `.github/workflows/windows-d
 - Message actions: copy, copy as Markdown/plain text, regenerate, export, report error, delete; **edit & resend** for user messages
 - **Regenerate** keeps previous answers: *Response 1 / 3* with ◀ ▶ controls
 - **Follow-up suggestions** — `<ElicitationsGroup>` / `<Elicitation>` markup appended by some servers is parsed, stripped from the text, and rendered as clickable chips that send the suggested prompt
+- **Continue generating** — responses cut off by the model's token limit get a one-click *Continue generating* chip that asks the model to pick up where it stopped
 - **Stop** generation (button, `Esc`, AbortController → proxy → upstream)
 - Timestamps, per-message model, **token usage** (click for prompt/completion/total), optional response time
 - **Image attachments** — attach up to 4 images per message by picking, **pasting from the clipboard**, or **dragging & dropping** onto the composer; large images are downscaled locally before they are stored or sent (opt-in, see Known limitations)
-- **Crash-proof composer** — per-conversation drafts survive reloads (text persisted locally, attachments kept in memory)
+- **Crash-proof composer** — per-conversation drafts survive reloads (text persisted locally, attachments kept in memory); the draft is restored immediately on startup, including for a not-yet-created chat
+- **Self-healing after crashes** — a response that was streaming when the app closed is marked *stopped* on the next start; partial text is checkpointed every ~1.5 s, so even a hard crash keeps what arrived
+- **Live sidebar activity** — a pulsing dot marks conversations that are currently generating, and the window title mirrors the open chat
 - Per-conversation **system instructions** and optional default system prompt
 - Optional `temperature` / `top_p` / `max_tokens` — off by default, auto-disabled if the server rejects them
 - **Configurable request timeout** (1–10 min) for slow, non-streaming generations — streams never time out

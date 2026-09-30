@@ -62,8 +62,8 @@ export function ChatHeader({ scrolled = false }: { scrolled?: boolean }) {
   return (
     <div
       className={cn(
-        'relative z-(--z-panel) flex h-12 shrink-0 items-center justify-between gap-2 px-2 transition-[background-color,box-shadow] duration-(--duration-slow) ease-(--ease-standard) sm:px-4',
-        scrolled ? 'bg-(--glass-md-bg) shadow-[0_1px_0_var(--line)] backdrop-blur-(--blur-md) backdrop-saturate-150' : 'bg-transparent',
+        'chat-header relative z-(--z-panel) flex h-12 shrink-0 items-center justify-between gap-2 px-2 sm:px-4',
+        scrolled ? 'chat-header-scrolled' : 'bg-transparent',
       )}
     >
       <div className="flex min-w-0 items-center gap-1">

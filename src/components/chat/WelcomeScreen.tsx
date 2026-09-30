@@ -55,9 +55,7 @@ export function WelcomeScreen() {
         <div className="glass-md mb-5 flex h-14 w-14 items-center justify-center rounded-(--radius-lg) sm:mb-6 sm:h-16 sm:w-16">
           <GemMark size={36} className="relative z-1" />
         </div>
-        <h1 className="text-center text-[26px] font-semibold tracking-tight sm:text-[34px]">
-          How can I help today?
-        </h1>
+        <h1 className="welcome-title text-center">How can I help today?</h1>
         <p className="mt-2 text-center text-[15px] text-fg-muted">
           Your private Gemini workspace — everything stays on this device.
         </p>

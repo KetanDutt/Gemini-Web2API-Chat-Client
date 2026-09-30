@@ -1,7 +1,7 @@
 {
   "name": "glassgem",
   "private": true,
-  "version": "1.2.0",
+  "version": "1.4.0",
   "type": "module",
   "main": "electron/main.cjs",
   "description": "GlassGem — a Liquid Glass chat client for Gemini Web2API",

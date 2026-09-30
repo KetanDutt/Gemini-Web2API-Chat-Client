@@ -65,7 +65,9 @@ export function MessageList({ onScrolledChange }: { onScrolledChange?: (scrolled
     if (!generating) return
     let raf = 0
     const tick = () => {
-      if (atBottomRef.current && scrollRef.current) {
+      // Hidden tabs get no rAF callbacks anyway; skip the layout reads too so
+      // a backgrounded generation does no per-frame work at all.
+      if (!document.hidden && atBottomRef.current && scrollRef.current) {
         const el = scrollRef.current
         if (el.scrollTop + el.clientHeight < el.scrollHeight - 1) el.scrollTop = el.scrollHeight
       }

@@ -45,8 +45,9 @@ export function PromptLibraryPanel({ embedded }: { embedded?: boolean }) {
 
   const use = (p: SavedPrompt) => {
     insert(p.text)
+    // The standalone dialog closes so you can use the composer right away;
+    // the panel embedded in Settings stays open for browsing.
     if (!embedded) closeDialog()
-    else closeDialog()
     toast.success('Prompt inserted')
   }
 
@@ -79,7 +80,7 @@ export function PromptLibraryPanel({ embedded }: { embedded?: boolean }) {
             </label>
             <label className="block">
               <span className="mb-1 block text-[12.5px] font-medium">Category</span>
-              <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value as PromptCategory })} className="field h-10 appearance-none py-0">
+              <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value as PromptCategory })} className="field h-10 cursor-pointer py-0">
                 {PROMPT_CATEGORIES.map((c) => (
                   <option key={c} value={c}>
                     {c}

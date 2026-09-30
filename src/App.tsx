@@ -16,6 +16,12 @@ export default function App() {
   useKeyboardShortcuts()
   useConnectionMonitor()
   const dark = useIsDark()
+  const activeTitle = useConversations((s) => s.conversations.find((c) => c.id === s.activeId)?.title)
+
+  // The browser tab / window switcher mirrors the open conversation.
+  useEffect(() => {
+    document.title = activeTitle ? `${activeTitle} · GlassGem` : 'GlassGem'
+  }, [activeTitle])
 
   useEffect(() => {
     useConversations

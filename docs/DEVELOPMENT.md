@@ -68,6 +68,7 @@ non-streaming, multimodal message parts). Special inputs for testing:
 | `slow` | Long stream, ~60 ms per token |
 | `short` | One-line answer |
 | `elicit` | Answer followed by an `<ElicitationsGroup>` block (follow-up chips) |
+| `truncate` or `finish-length` | Answer ends with `finish_reason: "length"` (exercises the *Continue generating* chip) |
 | `error-500` | HTTP 500 |
 | `error-429` | HTTP 429 |
 | `error-stream` | Partial stream → OpenAI-style error chunk (tests mid-stream failures) |

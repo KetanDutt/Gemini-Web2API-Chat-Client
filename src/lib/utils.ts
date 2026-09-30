@@ -128,16 +128,6 @@ export function modKey(): string {
   return isMac() ? '⌘' : 'Ctrl'
 }
 
-export function debounce<T extends (...args: never[]) => void>(fn: T, wait: number) {
-  let t: ReturnType<typeof setTimeout> | undefined
-  const debounced = (...args: Parameters<T>) => {
-    if (t) clearTimeout(t)
-    t = setTimeout(() => fn(...args), wait)
-  }
-  debounced.cancel = () => t && clearTimeout(t)
-  return debounced
-}
-
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     if (navigator.clipboard?.writeText) {

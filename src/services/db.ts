@@ -16,6 +16,14 @@ export class GlassGemDB extends Dexie {
       messages: 'id, conversationId, [conversationId+order], createdAt',
       prompts: 'id, category, favorite, updatedAt',
     })
+    // v2: index `status` so in-flight ("pending"/"streaming") messages can be
+    // found cheaply at startup and reaped after a crash or reload. No shape
+    // change — Dexie backfills the new index automatically on upgrade.
+    this.version(2).stores({
+      conversations: 'id, updatedAt, createdAt, favorite, archived, title',
+      messages: 'id, conversationId, [conversationId+order], createdAt, status',
+      prompts: 'id, category, favorite, updatedAt',
+    })
   }
 }
 

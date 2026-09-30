@@ -10,6 +10,7 @@ interface Props {
   conversation: Conversation
   active: boolean
   renaming: boolean
+  generating?: boolean
   query?: string
   snippet?: string
   onSelect: (id: string) => void
@@ -23,7 +24,7 @@ interface Props {
   onExport: (id: string, format: 'json' | 'markdown' | 'txt') => void
 }
 
-export const ConversationItem = memo(function ConversationItem({ conversation: c, active, renaming, query, snippet, onSelect, onRename, onStartRename, onFavorite, onPin, onArchive, onDelete, onDuplicate, onExport }: Props) {
+export const ConversationItem = memo(function ConversationItem({ conversation: c, active, renaming, generating, query, snippet, onSelect, onRename, onStartRename, onFavorite, onPin, onArchive, onDelete, onDuplicate, onExport }: Props) {
   const [draft, setDraft] = useState(c.title)
   const [menuOpen, setMenuOpen] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -85,6 +86,7 @@ export const ConversationItem = memo(function ConversationItem({ conversation: c
             {c.favorite && <Star size={11} className="shrink-0 fill-warning text-warning" aria-label="Favorite" />}
             {c.archived && <Archive size={11} className="shrink-0 text-fg-subtle" aria-label="Archived" />}
             <span className={cn('truncate text-[13.5px] leading-5', active ? 'font-semibold text-fg' : 'font-medium text-fg/90')}>{query ? <Highlight text={c.title} query={query} /> : c.title}</span>
+            {generating && <span className="generating-dot shrink-0" role="status" aria-label="Generating response" title="Generating response…" />}
           </div>
           {(snippet || c.preview) && (
             <p className="mt-0.5 truncate text-[12px] leading-4 text-fg-subtle">

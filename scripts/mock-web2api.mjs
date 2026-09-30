@@ -100,6 +100,11 @@ function replyFor(messages) {
   }
   if (lower.includes('error-500')) return { error: 500 }
   if (lower.includes('error-429')) return { error: 429 }
+  if (lower.includes('truncate') || lower.includes('finish-length')) {
+    // Pretends the model hit its token cap mid-answer (finish_reason "length")
+    // so the "Continue generating" chip can be exercised without a real key.
+    return { text: '## Part 1 of a longer answer\n\nThe response was cut off right in the middle of an important explanation about how ', finish: 'length' }
+  }
   if (lower.includes('error-stream')) {
     // Streams a partial answer, then fails mid-stream with an OpenAI-style
     // error chunk — mirrors how the real backend surfaces upstream failures.
@@ -186,7 +191,7 @@ const server = http.createServer(async (req, res) => {
             send({ error: { message: 'upstream error: mock stream failure', type: 'server_error' } })
             return res.end()
           }
-          send({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: {}, finish_reason: 'stop' }], usage })
+          send({ id, object: 'chat.completion.chunk', created, model, choices: [{ index: 0, delta: {}, finish_reason: reply.finish ?? 'stop' }], usage })
           res.write('data: [DONE]\n\n')
           return res.end()
         }
@@ -203,7 +208,7 @@ const server = http.createServer(async (req, res) => {
       object: 'chat.completion',
       created,
       model,
-      choices: [{ index: 0, message: { role: 'assistant', content: reply.text }, finish_reason: 'stop' }],
+      choices: [{ index: 0, message: { role: 'assistant', content: reply.text }, finish_reason: reply.finish ?? 'stop' }],
       usage,
     })
   }

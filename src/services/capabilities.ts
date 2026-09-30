@@ -40,10 +40,6 @@ export const CAPABILITY_LABELS: Record<keyof Omit<Capabilities, 'detectedAt' | '
   samplingParams: { label: 'Sampling parameters', description: 'temperature, top_p, max_tokens' },
 }
 
-export function isSupported(state: CapabilityState) {
-  return state === 'supported'
-}
-
 /**
  * Decide whether to try streaming for the next request.
  * We attempt it when unknown (and fall back on failure) or when supported.
